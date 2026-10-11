@@ -24,6 +24,8 @@ model User {
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
   employees           Employee[]
+  assignmentsGiven    AssetAssignment[]    @relation("AssignmentAssignedBy")
+  assignmentsReturned AssetAssignment[]    @relation("AssignmentReturnedBy")
 
   @@map("users")
 }

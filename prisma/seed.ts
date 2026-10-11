@@ -1,13 +1,19 @@
 /* eslint-disable no-console */
 import {
   ApproverType,
+  AssetCondition,
+  AssetStatus,
+  AssigneeType,
+  AssignmentStatus,
   Gender,
   LeaveRequestStatus,
+  MaintenanceStatus,
+  MaintenanceType,
   PrismaClient,
   WorkflowActionType,
 } from '@prisma/client';
 import * as argon2 from 'argon2';
-import { parseDateOnly } from '../src/modules/hr/date-only';
+import { parseDateOnly } from '../src/common/dates/date-only';
 import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
@@ -40,6 +46,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'positions:read',
       'employees:read',
       'leave:read',
+      'assets:read',
     ],
   },
   employee: {
@@ -624,6 +631,381 @@ async function seedHr(
   });
 }
 
+const ASSET_CATEGORIES: [code: string, name: string, usefulLifeMonths: number][] = [
+  ['BLG', 'Bilgisayar', 36],
+  ['TEL', 'Mobil Cihaz', 24],
+  ['MON', 'Monitör ve Ekran', 48],
+  ['OFS', 'Ofis Ekipmanı', 60],
+  ['MOB', 'Mobilya', 60],
+  ['ARC', 'Araç', 60],
+];
+
+const ASSET_LOCATIONS: [code: string, name: string, branch: string][] = [
+  ['DEPO', 'Merkez Depo', 'MERKEZ'],
+  ['BT-ODA', 'BT Sistem Odası', 'MERKEZ'],
+  ['TOPLANTI', 'Toplantı Salonu', 'MERKEZ'],
+  ['ANK-DEPO', 'Ankara Depo', 'ANK'],
+];
+
+type AssetHolder =
+  { employee: string } | { department: string } | { location: string } | { stock: string };
+
+interface SampleAsset {
+  name: string;
+  category: string;
+  brand: string;
+  model: string;
+  serial: string;
+  purchaseDate: string;
+  cost: number;
+  holder: AssetHolder;
+  /** Assignment date for assigned assets. */
+  since?: string;
+  acknowledged?: boolean;
+  previousHolder?: { employee: string; from: string; to: string };
+  maintenance?: { title: string; vendor: string; startedAt: string; cost?: number };
+  retired?: string;
+}
+
+const SAMPLE_ASSETS: SampleAsset[] = [
+  {
+    name: 'Dizüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'Dell',
+    model: 'Latitude 7440',
+    serial: 'DL7440-8KX21',
+    purchaseDate: '2024-04-15',
+    cost: 48500,
+    holder: { employee: 'Kerem Polat' },
+    since: '2024-05-02',
+    acknowledged: true,
+  },
+  {
+    name: 'Cep Telefonu',
+    category: 'TEL',
+    brand: 'Apple',
+    model: 'iPhone 15',
+    serial: 'F2LXK9P1Q7',
+    purchaseDate: '2025-09-20',
+    cost: 52000,
+    holder: { employee: 'Kerem Polat' },
+    since: '2025-10-01',
+  },
+  {
+    name: 'Dizüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'Apple',
+    model: 'MacBook Pro 14',
+    serial: 'C02FK3MBP14',
+    purchaseDate: '2024-01-10',
+    cost: 89000,
+    holder: { employee: 'Deniz Aksoy' },
+    since: '2024-01-15',
+    acknowledged: true,
+  },
+  {
+    name: 'Dizüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'Lenovo',
+    model: 'ThinkPad T14 Gen 4',
+    serial: 'PF4T14-22981',
+    purchaseDate: '2023-01-03',
+    cost: 39500,
+    holder: { employee: 'Elif Şahin' },
+    since: '2023-01-09',
+    acknowledged: true,
+  },
+  {
+    name: 'Monitör 27"',
+    category: 'MON',
+    brand: 'Dell',
+    model: 'P2723DE',
+    serial: 'CN0P27-55K1',
+    purchaseDate: '2023-01-03',
+    cost: 11800,
+    holder: { employee: 'Elif Şahin' },
+    since: '2023-01-09',
+    acknowledged: true,
+  },
+  {
+    name: 'Cep Telefonu',
+    category: 'TEL',
+    brand: 'Samsung',
+    model: 'Galaxy S23',
+    serial: 'R5CW31ABX9',
+    purchaseDate: '2023-08-14',
+    cost: 31000,
+    holder: { employee: 'Ahmet Yıldız' },
+    since: '2023-08-21',
+    acknowledged: true,
+  },
+  {
+    name: 'Akıllı Ekran 65"',
+    category: 'MON',
+    brand: 'Samsung',
+    model: 'QM65R',
+    serial: 'SQM65-7781',
+    purchaseDate: '2024-06-05',
+    cost: 42000,
+    holder: { location: 'TOPLANTI' },
+    since: '2024-06-10',
+  },
+  {
+    name: 'Ağ Anahtarı',
+    category: 'OFS',
+    brand: 'Cisco',
+    model: 'Catalyst 9200',
+    serial: 'FOC2419X0AB',
+    purchaseDate: '2022-11-01',
+    cost: 64000,
+    holder: { location: 'BT-ODA' },
+    since: '2022-11-07',
+  },
+  {
+    name: 'Çok Fonksiyonlu Yazıcı',
+    category: 'OFS',
+    brand: 'HP',
+    model: 'LaserJet Pro MFP 4103',
+    serial: 'VNB3K40112',
+    purchaseDate: '2024-02-12',
+    cost: 18500,
+    holder: { department: 'FIN' },
+    since: '2024-02-15',
+  },
+  {
+    name: 'Hafif Ticari Araç',
+    category: 'ARC',
+    brand: 'Ford',
+    model: 'Transit Connect',
+    serial: 'WF0XXXTTGXNA12345',
+    purchaseDate: '2022-03-01',
+    cost: 685000,
+    holder: { department: 'OPS' },
+    since: '2022-03-10',
+  },
+  {
+    name: 'Dizüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'Lenovo',
+    model: 'ThinkPad E14',
+    serial: 'PF4E14-10457',
+    purchaseDate: '2024-02-01',
+    cost: 27500,
+    holder: { stock: 'DEPO' },
+    previousHolder: { employee: 'Burak Doğan', from: '2024-02-01', to: '2025-12-19' },
+  },
+  {
+    name: 'Dizüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'HP',
+    model: 'EliteBook 840 G9',
+    serial: '5CG2310QWE',
+    purchaseDate: '2022-09-12',
+    cost: 34000,
+    holder: { stock: 'BT-ODA' },
+    maintenance: {
+      title: 'Ekran değişimi',
+      vendor: 'HP Yetkili Servis',
+      startedAt: `${YEAR}-10-02`,
+      cost: 4200,
+    },
+  },
+  {
+    name: 'Tablet',
+    category: 'TEL',
+    brand: 'Apple',
+    model: 'iPad Air 11',
+    serial: 'DMPXK2IPAD',
+    purchaseDate: '2025-03-17',
+    cost: 28000,
+    holder: { stock: 'ANK-DEPO' },
+  },
+  {
+    name: 'Ergonomik Ofis Koltuğu',
+    category: 'MOB',
+    brand: 'Herman Miller',
+    model: 'Aeron',
+    serial: 'HM-AER-30219',
+    purchaseDate: '2023-05-02',
+    cost: 36000,
+    holder: { stock: 'DEPO' },
+  },
+  {
+    name: 'Masaüstü Bilgisayar',
+    category: 'BLG',
+    brand: 'Dell',
+    model: 'OptiPlex 7070',
+    serial: 'DLOPT7070-991',
+    purchaseDate: '2019-06-10',
+    cost: 14500,
+    holder: { stock: 'DEPO' },
+    retired: 'Ekonomik ömrünü tamamladı, anakart arızası',
+  },
+];
+
+async function seedAssets(companyId: string, adminId: string) {
+  const categories = new Map<string, string>();
+  for (const [code, name, usefulLifeMonths] of ASSET_CATEGORIES) {
+    const row = await prisma.assetCategory.upsert({
+      where: { companyId_code: { companyId, code } },
+      create: { companyId, code, name, usefulLifeMonths },
+      update: {},
+    });
+    categories.set(code, row.id);
+  }
+
+  const locations = new Map<string, string>();
+  for (const [code, name, branchCode] of ASSET_LOCATIONS) {
+    const branch = await prisma.branch.findUnique({
+      where: { companyId_code: { companyId, code: branchCode } },
+    });
+    const row = await prisma.assetLocation.upsert({
+      where: { companyId_code: { companyId, code } },
+      create: { companyId, code, name, branchId: branch?.id },
+      update: {},
+    });
+    locations.set(code, row.id);
+  }
+
+  if (await prisma.asset.count({ where: { companyId } })) return;
+
+  const employees = new Map(
+    (await prisma.employee.findMany({ where: { companyId } })).map((row) => [
+      `${row.firstName} ${row.lastName}`,
+      row.id,
+    ]),
+  );
+  const departments = new Map(
+    (await prisma.department.findMany({ where: { companyId } })).map((row) => [row.code, row.id]),
+  );
+
+  let assignmentNo = 0;
+  const nextAssignmentNumber = () =>
+    formatNumber({ prefix: 'ZMT', padding: 6, includeYear: true }, YEAR, ++assignmentNo);
+
+  for (const [index, sample] of SAMPLE_ASSETS.entries()) {
+    const holder = sample.holder;
+    const assigned = !('stock' in holder);
+    const status = sample.retired
+      ? AssetStatus.RETIRED
+      : sample.maintenance
+        ? AssetStatus.IN_MAINTENANCE
+        : assigned
+          ? AssetStatus.ASSIGNED
+          : AssetStatus.IN_STOCK;
+    const asset = await prisma.asset.create({
+      data: {
+        companyId,
+        assetTag: formatNumber({ prefix: 'DMB', padding: 6, includeYear: true }, YEAR, index + 1),
+        name: sample.name,
+        categoryId: categories.get(sample.category)!,
+        brand: sample.brand,
+        model: sample.model,
+        serialNumber: sample.serial,
+        status,
+        condition: sample.retired ? AssetCondition.DAMAGED : AssetCondition.GOOD,
+        locationId: 'stock' in holder ? locations.get(holder.stock) : null,
+        purchaseDate: parseDateOnly(sample.purchaseDate),
+        purchaseCost: sample.cost,
+        salvageValue: Math.round(sample.cost * 0.05),
+        supplier: `${sample.brand} Türkiye Distribütörü`,
+        invoiceNo: `FTR-${sample.purchaseDate.slice(0, 4)}-${String(index + 101).padStart(5, '0')}`,
+        warrantyEndDate: parseDateOnly(
+          `${Number(sample.purchaseDate.slice(0, 4)) + 2}${sample.purchaseDate.slice(4)}`,
+        ),
+        retiredAt: sample.retired ? new Date() : null,
+        retireReason: sample.retired,
+      },
+    });
+
+    if (sample.previousHolder) {
+      await prisma.assetAssignment.create({
+        data: {
+          companyId,
+          number: nextAssignmentNumber(),
+          assetId: asset.id,
+          assigneeType: AssigneeType.EMPLOYEE,
+          employeeId: employees.get(sample.previousHolder.employee),
+          status: AssignmentStatus.RETURNED,
+          assignedAt: parseDateOnly(sample.previousHolder.from),
+          conditionOut: AssetCondition.NEW,
+          assignedById: adminId,
+          acknowledgedAt: parseDateOnly(sample.previousHolder.from),
+          returnedAt: parseDateOnly(sample.previousHolder.to),
+          conditionIn: AssetCondition.GOOD,
+          returnNotes: 'Cihaz yenilendi, eski cihaz depoya alındı',
+          returnedById: adminId,
+        },
+      });
+    }
+
+    if (assigned) {
+      await prisma.assetAssignment.create({
+        data: {
+          companyId,
+          number: nextAssignmentNumber(),
+          assetId: asset.id,
+          ...('employee' in holder
+            ? { assigneeType: AssigneeType.EMPLOYEE, employeeId: employees.get(holder.employee) }
+            : 'department' in holder
+              ? {
+                  assigneeType: AssigneeType.DEPARTMENT,
+                  departmentId: departments.get(holder.department),
+                }
+              : {
+                  assigneeType: AssigneeType.LOCATION,
+                  locationId: locations.get(holder.location),
+                }),
+          assignedAt: parseDateOnly(sample.since!),
+          conditionOut: AssetCondition.NEW,
+          assignedById: adminId,
+          acknowledgedAt: sample.acknowledged ? parseDateOnly(sample.since!) : null,
+        },
+      });
+    }
+
+    if (sample.maintenance) {
+      await prisma.assetMaintenance.create({
+        data: {
+          companyId,
+          assetId: asset.id,
+          type: MaintenanceType.REPAIR,
+          title: sample.maintenance.title,
+          vendor: sample.maintenance.vendor,
+          cost: sample.maintenance.cost,
+          startedAt: parseDateOnly(sample.maintenance.startedAt),
+          createdById: adminId,
+        },
+      });
+    }
+    if (sample.category === 'ARC') {
+      await prisma.assetMaintenance.create({
+        data: {
+          companyId,
+          assetId: asset.id,
+          type: MaintenanceType.SERVICE,
+          status: MaintenanceStatus.COMPLETED,
+          title: 'Periyodik bakım (60.000 km)',
+          vendor: 'Ford Yetkili Servis',
+          cost: 9800,
+          startedAt: parseDateOnly(`${YEAR}-04-14`),
+          completedAt: parseDateOnly(`${YEAR}-04-15`),
+          createdById: adminId,
+        },
+      });
+    }
+  }
+
+  await prisma.numberSequence.updateMany({
+    where: { companyId, code: 'ASSET', nextValue: { lte: SAMPLE_ASSETS.length } },
+    data: { nextValue: SAMPLE_ASSETS.length + 1, currentYear: YEAR },
+  });
+  await prisma.numberSequence.updateMany({
+    where: { companyId, code: 'ASSET_ASSIGNMENT', nextValue: { lte: assignmentNo } },
+    data: { nextValue: assignmentNo + 1, currentYear: YEAR },
+  });
+}
+
 async function main() {
   console.log('Seeding permissions and currencies...');
   await seedPermissions();
@@ -698,6 +1080,9 @@ async function main() {
 
   console.log('Seeding human resources...');
   await seedHr(pulse.id, hq.id, usersByName, pulseRoles);
+
+  console.log('Seeding assets...');
+  await seedAssets(pulse.id, admin.id);
 
   console.log('Seeding workflow...');
   const definition = await prisma.workflowDefinition.upsert({

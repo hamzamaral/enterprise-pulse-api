@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AssetsModule } from '../assets/assets.module';
 import { WorkflowModule } from '../workflow/workflow.module';
 import { DepartmentsService } from './departments.service';
 import { EmployeesService } from './employees.service';
@@ -20,7 +21,7 @@ import { PositionsService } from './positions.service';
 
 /** Human resources: organization structure, personnel records and leave management. */
 @Module({
-  imports: [WorkflowModule],
+  imports: [WorkflowModule, AssetsModule],
   controllers: [
     DepartmentsController,
     PositionsController,

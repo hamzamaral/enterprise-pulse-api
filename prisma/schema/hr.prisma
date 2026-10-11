@@ -35,12 +35,13 @@ model Department {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  company   Company      @relation(fields: [companyId], references: [id])
-  parent    Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
-  children  Department[] @relation("DepartmentTree")
-  manager   Employee?    @relation("DepartmentManager", fields: [managerId], references: [id])
-  employees Employee[]   @relation("EmployeeDepartment")
-  positions Position[]
+  company          Company           @relation(fields: [companyId], references: [id])
+  parent           Department?       @relation("DepartmentTree", fields: [parentId], references: [id])
+  children         Department[]      @relation("DepartmentTree")
+  manager          Employee?         @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees        Employee[]        @relation("EmployeeDepartment")
+  positions        Position[]
+  assetAssignments AssetAssignment[]
 
   @@unique([companyId, code])
   @@index([companyId, parentId])
@@ -96,16 +97,17 @@ model Employee {
   updatedAt             DateTime       @updatedAt
   deletedAt             DateTime?
 
-  company            Company        @relation(fields: [companyId], references: [id])
-  branch             Branch?        @relation(fields: [branchId], references: [id])
-  user               User?          @relation(fields: [userId], references: [id])
-  department         Department?    @relation("EmployeeDepartment", fields: [departmentId], references: [id])
-  position           Position?      @relation(fields: [positionId], references: [id])
-  manager            Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports            Employee[]     @relation("EmployeeManager")
-  managedDepartments Department[]   @relation("DepartmentManager")
+  company            Company           @relation(fields: [companyId], references: [id])
+  branch             Branch?           @relation(fields: [branchId], references: [id])
+  user               User?             @relation(fields: [userId], references: [id])
+  department         Department?       @relation("EmployeeDepartment", fields: [departmentId], references: [id])
+  position           Position?         @relation(fields: [positionId], references: [id])
+  manager            Employee?         @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports            Employee[]        @relation("EmployeeManager")
+  managedDepartments Department[]      @relation("DepartmentManager")
   leaveBalances      LeaveBalance[]
   leaveRequests      LeaveRequest[]
+  assetAssignments   AssetAssignment[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

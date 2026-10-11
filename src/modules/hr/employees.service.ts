@@ -7,8 +7,9 @@ import {
 import { EmployeeStatus, Prisma } from '@prisma/client';
 import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/paginate';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { AssetAssignmentsService } from '../assets/asset-assignments.service';
 import { NumberingService } from '../numbering/numbering.service';
-import { parseDateOnly, toDateOnly } from './date-only';
+import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import type {
   CreateEmployeeDto,
   EmployeeDetailDto,
@@ -51,6 +52,7 @@ export class EmployeesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly numbering: NumberingService,
+    private readonly assetAssignments: AssetAssignmentsService,
   ) {}
 
   async findAll(companyId: string, query: EmployeeQueryDto) {
@@ -147,6 +149,12 @@ export class EmployeesService {
     }
     if (dto.terminationDate < employee.hireDate) {
       throw new BadRequestException('Termination date cannot be before the hire date');
+    }
+    const heldAssets = await this.assetAssignments.countActiveForEmployee(companyId, id);
+    if (heldAssets > 0) {
+      throw new ConflictException(
+        `Employee still holds ${heldAssets} asset(s); return them before termination`,
+      );
     }
     await this.prisma.employee.update({
       where: { id },

@@ -34,6 +34,11 @@ model Company {
   leaveBalances       LeaveBalance[]
   leaveRequests       LeaveRequest[]
   holidays            Holiday[]
+  assetCategories     AssetCategory[]
+  assetLocations      AssetLocation[]
+  assets              Asset[]
+  assetAssignments    AssetAssignment[]
+  assetMaintenances   AssetMaintenance[]
 
   @@map("companies")
 }
@@ -52,9 +57,10 @@ model Branch {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  company     Company       @relation(fields: [companyId], references: [id])
-  memberships UserCompany[]
-  employees   Employee[]
+  company        Company         @relation(fields: [companyId], references: [id])
+  memberships    UserCompany[]
+  employees      Employee[]
+  assetLocations AssetLocation[]
 
   @@unique([companyId, code])
   @@index([companyId])

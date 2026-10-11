@@ -11,7 +11,7 @@ import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/pagina
 import { PrismaService, type PrismaTx } from '../../infrastructure/prisma/prisma.service';
 import { NumberingService } from '../numbering/numbering.service';
 import { WorkflowService } from '../workflow/workflow.service';
-import { parseDateOnly, toDateOnly } from './date-only';
+import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import type {
   CancelLeaveRequestDto,
   CreateLeaveRequestDto,
@@ -19,7 +19,8 @@ import type {
   LeaveRequestQueryDto,
   WorkingDaysDto,
 } from './dto/leave.dto';
-import { hasPermission, LEAVE_WORKFLOW_CODE } from './hr-access';
+import { hasPermission } from '../../common/auth/has-permission';
+import { LEAVE_WORKFLOW_CODE } from './leave.constants';
 import { LeaveSettingsService } from './leave-settings.service';
 import { countWorkingDays } from './working-days';
 

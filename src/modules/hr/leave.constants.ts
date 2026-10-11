@@ -1,0 +1,1 @@
+export const LEAVE_WORKFLOW_CODE = 'LEAVE_REQUEST';

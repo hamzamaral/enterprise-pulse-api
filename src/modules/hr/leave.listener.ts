@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { LeaveRequestStatus } from '@prisma/client';
 import { WORKFLOW_EVENTS, type WorkflowFinishedEvent } from '../workflow/workflow.events';
-import { LEAVE_WORKFLOW_CODE } from './hr-access';
+import { LEAVE_WORKFLOW_CODE } from './leave.constants';
 import { LeaveRequestsService } from './leave-requests.service';
 
 /** Keeps leave request status and balances in sync with the approval workflow. */

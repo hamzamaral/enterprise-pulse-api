@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EmployeeStatus, LeaveRequestStatus, type LeaveType } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
-import { parseDateOnly, toDateOnly } from './date-only';
+import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import type {
   AccrueResultDto,
   CreateHolidayDto,

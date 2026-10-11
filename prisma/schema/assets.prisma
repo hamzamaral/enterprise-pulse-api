@@ -1,0 +1,179 @@
+enum AssetStatus {
+  IN_STOCK
+  ASSIGNED
+  IN_MAINTENANCE
+  RETIRED
+  LOST
+}
+
+enum AssetCondition {
+  NEW
+  GOOD
+  FAIR
+  DAMAGED
+}
+
+enum AssigneeType {
+  EMPLOYEE
+  DEPARTMENT
+  LOCATION
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  RETURNED
+}
+
+enum MaintenanceType {
+  REPAIR
+  SERVICE
+  INSPECTION
+}
+
+enum MaintenanceStatus {
+  OPEN
+  COMPLETED
+}
+
+model AssetCategory {
+  id               String   @id @default(uuid()) @db.Uuid
+  companyId        String   @db.Uuid
+  code             String
+  name             String
+  /// Default useful life for straight-line depreciation; assets may override it.
+  usefulLifeMonths Int      @default(36)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  assets  Asset[]
+
+  @@unique([companyId, code])
+  @@map("asset_categories")
+}
+
+/// Physical place where assets are stored or installed (warehouse, meeting room, server room...).
+model AssetLocation {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  branchId    String?  @db.Uuid
+  code        String
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company           @relation(fields: [companyId], references: [id])
+  branch      Branch?           @relation(fields: [branchId], references: [id])
+  assets      Asset[]
+  assignments AssetAssignment[]
+
+  @@unique([companyId, code])
+  @@map("asset_locations")
+}
+
+model Asset {
+  id               String         @id @default(uuid()) @db.Uuid
+  companyId        String         @db.Uuid
+  /// Inventory tag printed on the QR label (ASSET number sequence).
+  assetTag         String
+  name             String
+  categoryId       String         @db.Uuid
+  brand            String?
+  model            String?
+  serialNumber     String?
+  status           AssetStatus    @default(IN_STOCK)
+  condition        AssetCondition @default(NEW)
+  /// Storage location while the asset is not assigned.
+  locationId       String?        @db.Uuid
+  purchaseDate     DateTime?      @db.Date
+  purchaseCost     Decimal?       @db.Decimal(18, 2)
+  currency         String         @default("TRY")
+  salvageValue     Decimal        @default(0) @db.Decimal(18, 2)
+  usefulLifeMonths Int?
+  supplier         String?
+  invoiceNo        String?
+  warrantyEndDate  DateTime?      @db.Date
+  notes            String?
+  retiredAt        DateTime?
+  retireReason     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  deletedAt        DateTime?
+
+  company      Company            @relation(fields: [companyId], references: [id])
+  category     AssetCategory      @relation(fields: [categoryId], references: [id])
+  location     AssetLocation?     @relation(fields: [locationId], references: [id])
+  assignments  AssetAssignment[]
+  maintenances AssetMaintenance[]
+
+  @@unique([companyId, assetTag])
+  @@unique([companyId, serialNumber])
+  @@index([companyId, status])
+  @@index([companyId, categoryId])
+  @@map("assets")
+}
+
+/// Zimmet: hand-over of an asset to an employee, a department or a location.
+model AssetAssignment {
+  id                 String           @id @default(uuid()) @db.Uuid
+  companyId          String           @db.Uuid
+  number             String
+  assetId            String           @db.Uuid
+  assigneeType       AssigneeType
+  employeeId         String?          @db.Uuid
+  departmentId       String?          @db.Uuid
+  locationId         String?          @db.Uuid
+  status             AssignmentStatus @default(ACTIVE)
+  assignedAt         DateTime         @db.Date
+  expectedReturnDate DateTime?        @db.Date
+  conditionOut       AssetCondition
+  notes              String?
+  assignedById       String           @db.Uuid
+  /// Set when the employee confirms receipt (self-service signature).
+  acknowledgedAt     DateTime?
+  returnedAt         DateTime?        @db.Date
+  conditionIn        AssetCondition?
+  returnNotes        String?
+  returnedById       String?          @db.Uuid
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  company    Company        @relation(fields: [companyId], references: [id])
+  asset      Asset          @relation(fields: [assetId], references: [id])
+  employee   Employee?      @relation(fields: [employeeId], references: [id])
+  department Department?    @relation(fields: [departmentId], references: [id])
+  location   AssetLocation? @relation(fields: [locationId], references: [id])
+  assignedBy User           @relation("AssignmentAssignedBy", fields: [assignedById], references: [id])
+  returnedBy User?          @relation("AssignmentReturnedBy", fields: [returnedById], references: [id])
+
+  @@unique([companyId, number])
+  @@index([assetId, status])
+  @@index([companyId, employeeId, status])
+  @@map("asset_assignments")
+}
+
+model AssetMaintenance {
+  id          String            @id @default(uuid()) @db.Uuid
+  companyId   String            @db.Uuid
+  assetId     String            @db.Uuid
+  type        MaintenanceType
+  status      MaintenanceStatus @default(OPEN)
+  title       String
+  description String?
+  vendor      String?
+  cost        Decimal?          @db.Decimal(18, 2)
+  startedAt   DateTime          @db.Date
+  completedAt DateTime?         @db.Date
+  createdById String            @db.Uuid
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+  asset   Asset   @relation(fields: [assetId], references: [id])
+
+  @@index([assetId, status])
+  @@map("asset_maintenances")
+}

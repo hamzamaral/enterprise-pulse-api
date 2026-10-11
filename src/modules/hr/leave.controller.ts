@@ -37,7 +37,7 @@ import {
   WorkingDaysDto,
   WorkingDaysQueryDto,
 } from './dto/leave.dto';
-import { hasPermission } from './hr-access';
+import { hasPermission } from '../../common/auth/has-permission';
 import { LeaveRequestsService } from './leave-requests.service';
 import { LeaveSettingsService } from './leave-settings.service';
 

@@ -1,4 +1,4 @@
-import { parseDateOnly, toDateOnly } from './date-only';
+import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import { countWorkingDays, rangesOverlap } from './working-days';
 
 const d = parseDateOnly;
