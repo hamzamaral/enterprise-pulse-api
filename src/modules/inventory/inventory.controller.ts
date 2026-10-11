@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { AuthUser } from '../../common/auth/auth-user';
-import { CurrentUser, RequirePermissions } from '../../common/decorators';
+import { CurrentUser, RequireAnyPermission, RequirePermissions } from '../../common/decorators';
 import { PaginatedResponseDto } from '../../common/pagination/pagination.dto';
 import {
   CreateProductCategoryDto,
@@ -203,6 +203,9 @@ export class ProductsController {
   }
 }
 
+/** Item, lot and serial pickers are also used on purchasing and sales documents. */
+const STOCK_LOOKUP = ['inventory:read', 'purchasing:read', 'sales:read'];
+
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller({ path: 'stock', version: '1' })
@@ -213,7 +216,7 @@ export class StockController {
   ) {}
 
   @Get('items')
-  @RequirePermissions('inventory:read')
+  @RequireAnyPermission(...STOCK_LOOKUP)
   @ApiOkResponse({ type: [StockItemDto] })
   findItems(@CurrentUser('companyId') companyId: string, @Query() query: StockItemQueryDto) {
     return this.products.findItems(companyId, query);
@@ -234,14 +237,14 @@ export class StockController {
   }
 
   @Get('lots')
-  @RequirePermissions('inventory:read')
+  @RequireAnyPermission(...STOCK_LOOKUP)
   @ApiOkResponse({ type: [LotStockDto] })
   findLots(@CurrentUser('companyId') companyId: string, @Query() query: LotQueryDto) {
     return this.stock.findLots(companyId, query);
   }
 
   @Get('serials')
-  @RequirePermissions('inventory:read')
+  @RequireAnyPermission(...STOCK_LOOKUP)
   @ApiOkResponse({ type: [SerialDto] })
   findSerials(@CurrentUser('companyId') companyId: string, @Query() query: SerialQueryDto) {
     return this.stock.findSerials(companyId, query);

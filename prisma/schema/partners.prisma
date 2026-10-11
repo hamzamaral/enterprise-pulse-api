@@ -1,0 +1,87 @@
+enum PartnerType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+/// What created a ledger entry; `documentId` points into the matching table.
+enum LedgerDocumentType {
+  OPENING
+  PURCHASE_INVOICE
+  SALES_INVOICE
+  SALES_RETURN
+  COLLECTION
+  PAYMENT
+}
+
+/// Customer and/or supplier account (cari hesap).
+model BusinessPartner {
+  id              String      @id @default(uuid()) @db.Uuid
+  companyId       String      @db.Uuid
+  code            String
+  title           String
+  type            PartnerType
+  taxNumber       String?
+  taxOffice       String?
+  email           String?
+  phone           String?
+  address         String?
+  city            String?
+  contactName     String?
+  /// Default due date offset for invoices.
+  paymentTermDays Int         @default(30)
+  currencyCode    String      @default("TRY")
+  /// Maximum open receivable in the company's base currency; null means unlimited.
+  creditLimit     Decimal?    @db.Decimal(18, 2)
+  notes           String?
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  company       Company              @relation(fields: [companyId], references: [id])
+  ledgerEntries PartnerLedgerEntry[]
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@map("business_partners")
+}
+
+/// Partner ledger (cari hesap ekstresi). Immutable: corrections are reversing entries.
+/// Debit increases what the partner owes us; credit increases what we owe the partner.
+model PartnerLedgerEntry {
+  id             String             @id @default(uuid()) @db.Uuid
+  /// Posting order for running balances.
+  seq            BigInt             @default(autoincrement())
+  companyId      String             @db.Uuid
+  partnerId      String             @db.Uuid
+  entryDate      DateTime           @db.Date
+  /// Invoices are due on this date; drives the aging report.
+  dueDate        DateTime?          @db.Date
+  documentType   LedgerDocumentType
+  documentId     String?            @db.Uuid
+  documentNumber String
+  description    String?
+  /// Amounts in the document currency.
+  debit          Decimal            @default(0) @db.Decimal(18, 2)
+  credit         Decimal            @default(0) @db.Decimal(18, 2)
+  currencyCode   String
+  exchangeRate   Decimal            @default(1) @db.Decimal(18, 6)
+  /// Amounts converted to the company's base currency; balances are kept in base currency.
+  debitBase      Decimal            @default(0) @db.Decimal(18, 2)
+  creditBase     Decimal            @default(0) @db.Decimal(18, 2)
+  /// Set on entries that reverse another entry (e.g. a cancelled invoice).
+  reversesId     String?            @unique @db.Uuid
+  createdById    String             @db.Uuid
+  createdAt      DateTime           @default(now())
+
+  company   Company             @relation(fields: [companyId], references: [id])
+  partner   BusinessPartner     @relation(fields: [partnerId], references: [id])
+  reverses  PartnerLedgerEntry? @relation("LedgerReversal", fields: [reversesId], references: [id])
+  reversal  PartnerLedgerEntry? @relation("LedgerReversal")
+  createdBy User                @relation("LedgerEntryCreatedBy", fields: [createdById], references: [id])
+
+  @@index([companyId, partnerId, seq])
+  @@index([documentType, documentId])
+  @@map("partner_ledger_entries")
+}

@@ -228,14 +228,18 @@ export class ProductsService {
     return this.findOne(companyId, productId);
   }
 
-  /** Stockable variants for item pickers (max. 20, active goods only). */
+  /** Variants for item pickers (max. 20, active goods; services on request). */
   async findItems(companyId: string, query: StockItemQueryDto): Promise<StockItemDto[]> {
     const search = query.search?.trim();
     const rows = await this.prisma.productVariant.findMany({
       where: {
         companyId,
         isActive: true,
-        product: { deletedAt: null, isActive: true, type: ProductType.GOODS },
+        product: {
+          deletedAt: null,
+          isActive: true,
+          ...(!query.includeServices && { type: ProductType.GOODS }),
+        },
         ...(search && {
           OR: [
             { sku: { contains: search, mode: 'insensitive' } },
@@ -250,7 +254,18 @@ export class ProductsService {
           }),
       },
       include: {
-        product: { select: { name: true, trackingType: true, unit: { select: { code: true } } } },
+        product: {
+          select: {
+            name: true,
+            type: true,
+            trackingType: true,
+            purchasePrice: true,
+            salePrice: true,
+            currency: true,
+            unit: { select: { code: true } },
+            vatRate: { select: { rate: true } },
+          },
+        },
         balances: {
           where: query.warehouseId ? { warehouseId: query.warehouseId } : undefined,
           select: { quantity: true },
@@ -266,9 +281,14 @@ export class ProductsService {
       productName: row.product.name,
       variantName: row.name,
       unitCode: row.product.unit.code,
+      productType: row.product.type,
       trackingType: row.product.trackingType,
       averageCost: unitCost(row.averageCost),
       onHand: qty(row.balances.reduce((sum, b) => sum.plus(b.quantity), new Prisma.Decimal(0))),
+      purchasePrice: row.product.purchasePrice?.toFixed(2) ?? null,
+      salePrice: row.product.salePrice?.toFixed(2) ?? null,
+      priceCurrency: row.product.currency,
+      vatRate: row.product.vatRate?.rate.toFixed(2) ?? null,
     }));
   }
 

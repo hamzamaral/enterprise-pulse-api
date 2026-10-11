@@ -20,6 +20,12 @@ describe('AbilityFactory', () => {
     expect(factory.hasAll(ability, ['audit:read', 'settings:read'])).toBe(false);
   });
 
+  it('accepts any one of several codes with hasAny', () => {
+    const ability = factory.createForUser({ isSuperAdmin: false, permissions: ['sales:read'] });
+    expect(factory.hasAny(ability, ['partners:read', 'sales:read'])).toBe(true);
+    expect(factory.hasAny(ability, ['partners:read', 'finance:read'])).toBe(false);
+  });
+
   it('lets "module:manage" cover every action of that module only', () => {
     const ability = factory.createForUser({
       isSuperAdmin: false,

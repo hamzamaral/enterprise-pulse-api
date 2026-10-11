@@ -28,6 +28,14 @@ export const PERMISSION_REGISTRY = {
   assets: ['read', 'create', 'update', 'delete', 'assign', 'count'],
   /** create/update/delete = products, variants, categories, warehouses; move = post stock movements. */
   inventory: ['read', 'create', 'update', 'delete', 'move', 'count'],
+  /** Customers and suppliers; partner lookups are also open to purchasing, sales and finance. */
+  partners: ['read', 'create', 'update', 'delete'],
+  /** approve = purchase orders; receive = post goods receipts into stock. */
+  purchasing: ['read', 'create', 'update', 'approve', 'receive'],
+  /** deliver = delivery notes and returns; invoice = issue and cancel sales invoices. */
+  sales: ['read', 'create', 'update', 'approve', 'deliver', 'invoice'],
+  /** create = collections, payments and cheques; approve = cancel postings. */
+  finance: ['read', 'create', 'update', 'approve'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

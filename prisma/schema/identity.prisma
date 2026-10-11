@@ -31,6 +31,7 @@ model User {
   assetCounts         AssetCount[]         @relation("AssetCountCreatedBy")
   assetCountScans     AssetCountLine[]     @relation("AssetCountLineFoundBy")
   attendanceEdits     AttendanceRecord[]   @relation("AttendanceUpdatedBy")
+  ledgerEntries       PartnerLedgerEntry[] @relation("LedgerEntryCreatedBy")
 
   @@map("users")
 }

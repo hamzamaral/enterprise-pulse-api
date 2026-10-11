@@ -1,5 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SerialStatus, StockCountStatus, StockMovementType, TrackingType } from '@prisma/client';
+import {
+  ProductType,
+  SerialStatus,
+  StockCountStatus,
+  StockMovementType,
+  TrackingType,
+} from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -41,9 +47,15 @@ export class StockItemQueryDto {
   @Transform(toBoolean)
   @IsBoolean()
   inStock?: boolean;
+
+  /** Also offer services (purchase and sales documents). */
+  @IsOptional()
+  @Transform(toBoolean)
+  @IsBoolean()
+  includeServices?: boolean;
 }
 
-/** A stockable variant, as offered by item pickers. */
+/** A variant as offered by item pickers. */
 export class StockItemDto {
   variantId: string;
   productId: string;
@@ -51,10 +63,17 @@ export class StockItemDto {
   productName: string;
   variantName: string | null;
   unitCode: string;
+  @ApiProperty({ enum: ProductType, enumName: 'ProductType' })
+  productType: ProductType;
   @ApiProperty({ enum: TrackingType, enumName: 'TrackingType' })
   trackingType: TrackingType;
   averageCost: string;
   onHand: string;
+  purchasePrice: string | null;
+  salePrice: string | null;
+  priceCurrency: string;
+  /** VAT percentage of the product's tax rate; null when none is set. */
+  vatRate: string | null;
 }
 
 export class StockLevelQueryDto extends PaginationQueryDto {

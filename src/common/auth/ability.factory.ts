@@ -32,4 +32,9 @@ export class AbilityFactory {
       return ability.can(action, subject);
     });
   }
+
+  /** True when the user has at least one of the given permission codes. */
+  hasAny(ability: AppAbility, codes: string[]): boolean {
+    return codes.some((code) => this.hasAll(ability, [code]));
+  }
 }

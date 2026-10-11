@@ -20,6 +20,7 @@ import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
 import { seedInventory } from './seed-inventory';
+import { seedPartners } from './seed-trade';
 
 const prisma = new PrismaClient();
 const YEAR = new Date().getFullYear();
@@ -52,6 +53,12 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'attendance:read',
       'assets:read',
       'inventory:read',
+      'partners:read',
+      'purchasing:read',
+      'purchasing:approve',
+      'sales:read',
+      'sales:approve',
+      'finance:read',
     ],
   },
   employee: {
@@ -179,6 +186,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['STOCK_COUNT', 'Stok Sayımı', 'SAY'],
     ['LEAVE_REQUEST', 'İzin Talebi', 'IZN'],
     ['EMPLOYEE', 'Personel Sicil No', 'PRS', false],
+    ['PARTNER', 'Cari Hesap', 'CAR', false],
   ];
   for (const [seqCode, seqName, prefix, yearly = true] of sequences) {
     await prisma.numberSequence.upsert({
@@ -1175,6 +1183,9 @@ async function main() {
 
   console.log('Seeding inventory...');
   await seedInventory(prisma, pulse.id, admin.id);
+
+  console.log('Seeding partners...');
+  await seedPartners(prisma, pulse.id);
 
   console.log('Seeding workflow...');
   const definition = await prisma.workflowDefinition.upsert({

@@ -54,6 +54,8 @@ model Company {
   stockMovements      StockMovement[]
   stockTransactions   StockTransaction[]
   stockCounts         StockCount[]
+  businessPartners    BusinessPartner[]
+  ledgerEntries       PartnerLedgerEntry[]
 
   @@map("companies")
 }
