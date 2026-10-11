@@ -84,6 +84,11 @@ export interface LowStockItem {
   minStock: Prisma.Decimal;
 }
 
+export interface PostOptions {
+  /** Sales order whose reservations this movement consumes (delivery notes). */
+  reservationOrderId?: string;
+}
+
 export interface PostResult {
   movementId: string;
   number: string;
@@ -100,6 +105,9 @@ interface LedgerEntry {
   lotId: string | null;
   delta: Prisma.Decimal;
   cost: Prisma.Decimal;
+  /** Outgoing issues and transfers must leave other orders' reservations untouched. */
+  guardReservations: boolean;
+  reservationOrderId?: string;
 }
 
 /**
@@ -124,7 +132,12 @@ export class StockMovementsService {
   }
 
   /** Posts a movement inside the caller's transaction (also used by stock count completion). */
-  async post(tx: PrismaTx, user: AuthUser, dto: CreateStockMovementDto): Promise<PostResult> {
+  async post(
+    tx: PrismaTx,
+    user: AuthUser,
+    dto: CreateStockMovementDto,
+    options: PostOptions = {},
+  ): Promise<PostResult> {
     const { companyId } = user;
     const movementDate = parseDateOnly(dto.movementDate);
     // One day of slack: "today" in the user's time zone may already be tomorrow in UTC.
@@ -212,6 +225,11 @@ export class StockMovementsService {
           lotId,
           delta,
           cost,
+          // Counts and adjustments record physical reality, so only issues and transfers
+          // are held back by reservations.
+          guardReservations:
+            dto.type === StockMovementType.ISSUE || dto.type === StockMovementType.TRANSFER,
+          reservationOrderId: options.reservationOrderId,
         });
         onHand.set(variant.id, onHand.get(variant.id)!.plus(delta));
       }
@@ -553,6 +571,24 @@ export class StockMovementsService {
       where: { warehouseId_variantId: balanceKey },
       select: { quantity: true },
     });
+    if (delta.isNegative() && entry.guardReservations) {
+      const reserved = await tx.stockReservation.aggregate({
+        where: {
+          ...balanceKey,
+          ...(entry.reservationOrderId && {
+            orderLine: { orderId: { not: entry.reservationOrderId } },
+          }),
+        },
+        _sum: { quantity: true },
+      });
+      const others = reserved._sum.quantity ?? dec(0);
+      if (balance.quantity.lessThan(others)) {
+        throw new BadRequestException(
+          `Insufficient available stock of ${variant.sku} in ${warehouse.name}: ` +
+            `${qty(others)} reserved for sales orders`,
+        );
+      }
+    }
     await tx.stockTransaction.create({
       data: {
         companyId,

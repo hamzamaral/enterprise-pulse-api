@@ -1,0 +1,318 @@
+enum SalesQuoteStatus {
+  OPEN
+  /// Turned into a sales order.
+  ACCEPTED
+  REJECTED
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  /// Confirmed: stock is reserved and the customer's credit limit was checked.
+  APPROVED
+  PARTIALLY_DELIVERED
+  DELIVERED
+  CANCELLED
+}
+
+/// Satış teklifi (STK): offered prices, valid until a date, convertible to an order.
+model SalesQuote {
+  id            String           @id @default(uuid()) @db.Uuid
+  companyId     String           @db.Uuid
+  number        String
+  partnerId     String           @db.Uuid
+  quoteDate     DateTime         @db.Date
+  validUntil    DateTime?        @db.Date
+  currencyCode  String
+  exchangeRate  Decimal          @db.Decimal(18, 6)
+  status        SalesQuoteStatus @default(OPEN)
+  notes         String?
+  subtotal      Decimal          @db.Decimal(18, 2)
+  discountTotal Decimal          @db.Decimal(18, 2)
+  vatTotal      Decimal          @db.Decimal(18, 2)
+  grandTotal    Decimal          @db.Decimal(18, 2)
+  createdById   String           @db.Uuid
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company   Company          @relation(fields: [companyId], references: [id])
+  partner   BusinessPartner  @relation(fields: [partnerId], references: [id])
+  createdBy User             @relation("SalesQuoteCreatedBy", fields: [createdById], references: [id])
+  lines     SalesQuoteLine[]
+  order     SalesOrder?
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("sales_quotes")
+}
+
+model SalesQuoteLine {
+  id           String  @id @default(uuid()) @db.Uuid
+  quoteId      String  @db.Uuid
+  lineNo       Int
+  variantId    String? @db.Uuid
+  description  String
+  quantity     Decimal @db.Decimal(18, 3)
+  unitPrice    Decimal @db.Decimal(18, 4)
+  discountRate Decimal @default(0) @db.Decimal(5, 2)
+  vatRate      Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+
+  quote   SalesQuote      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@index([quoteId])
+  @@map("sales_quote_lines")
+}
+
+/// Satış siparişi (SPS). Approval reserves stock in the shipping warehouse.
+model SalesOrder {
+  id            String           @id @default(uuid()) @db.Uuid
+  companyId     String           @db.Uuid
+  number        String
+  partnerId     String           @db.Uuid
+  quoteId       String?          @unique @db.Uuid
+  orderDate     DateTime         @db.Date
+  deliveryDate  DateTime?        @db.Date
+  /// Shipping warehouse; reservations and deliveries use it.
+  warehouseId   String           @db.Uuid
+  /// Customer's purchase order reference.
+  customerRef   String?
+  currencyCode  String
+  exchangeRate  Decimal          @db.Decimal(18, 6)
+  status        SalesOrderStatus @default(DRAFT)
+  notes         String?
+  subtotal      Decimal          @db.Decimal(18, 2)
+  discountTotal Decimal          @db.Decimal(18, 2)
+  vatTotal      Decimal          @db.Decimal(18, 2)
+  grandTotal    Decimal          @db.Decimal(18, 2)
+  createdById   String           @db.Uuid
+  approvedById  String?          @db.Uuid
+  approvedAt    DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  company    Company          @relation(fields: [companyId], references: [id])
+  partner    BusinessPartner  @relation(fields: [partnerId], references: [id])
+  quote      SalesQuote?      @relation(fields: [quoteId], references: [id])
+  warehouse  Warehouse        @relation(fields: [warehouseId], references: [id])
+  createdBy  User             @relation("SalesOrderCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?            @relation("SalesOrderApprovedBy", fields: [approvedById], references: [id])
+  lines      SalesOrderLine[]
+  deliveries DeliveryNote[]
+  invoices   SalesInvoice[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([partnerId])
+  @@map("sales_orders")
+}
+
+model SalesOrderLine {
+  id           String  @id @default(uuid()) @db.Uuid
+  orderId      String  @db.Uuid
+  lineNo       Int
+  variantId    String  @db.Uuid
+  description  String
+  quantity     Decimal @db.Decimal(18, 3)
+  deliveredQty Decimal @default(0) @db.Decimal(18, 3)
+  invoicedQty  Decimal @default(0) @db.Decimal(18, 3)
+  unitPrice    Decimal @db.Decimal(18, 4)
+  discountRate Decimal @default(0) @db.Decimal(5, 2)
+  vatRate      Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+
+  order         SalesOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant       ProductVariant     @relation(fields: [variantId], references: [id])
+  reservation   StockReservation?
+  deliveryLines DeliveryNoteLine[]
+  invoiceLines  SalesInvoiceLine[]
+
+  @@index([orderId])
+  @@map("sales_order_lines")
+}
+
+/// Stock set aside for an approved sales order line. Available = on hand − reserved;
+/// issues and transfers may not dip into other orders' reservations.
+model StockReservation {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  warehouseId String   @db.Uuid
+  variantId   String   @db.Uuid
+  orderLineId String   @unique @db.Uuid
+  /// Still reserved; deliveries reduce it and the row disappears at zero.
+  quantity    Decimal  @db.Decimal(18, 3)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company        @relation(fields: [companyId], references: [id])
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+  orderLine SalesOrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+
+  @@index([warehouseId, variantId])
+  @@map("stock_reservations")
+}
+
+/// İrsaliye (IRS): delivered quantities of an order, issued from stock as an ISSUE movement.
+model DeliveryNote {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @db.Uuid
+  number          String
+  orderId         String   @db.Uuid
+  partnerId       String   @db.Uuid
+  warehouseId     String   @db.Uuid
+  deliveryDate    DateTime @db.Date
+  shippingAddress String?
+  carrier         String?
+  notes           String?
+  /// Null when only services were delivered.
+  stockMovementId String?  @unique @db.Uuid
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  company       Company            @relation(fields: [companyId], references: [id])
+  order         SalesOrder         @relation(fields: [orderId], references: [id])
+  partner       BusinessPartner    @relation(fields: [partnerId], references: [id])
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
+  stockMovement StockMovement?     @relation(fields: [stockMovementId], references: [id])
+  createdBy     User               @relation("DeliveryNoteCreatedBy", fields: [createdById], references: [id])
+  lines         DeliveryNoteLine[]
+
+  @@unique([companyId, number])
+  @@index([orderId])
+  @@map("delivery_notes")
+}
+
+model DeliveryNoteLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  deliveryId  String   @db.Uuid
+  orderLineId String   @db.Uuid
+  variantId   String   @db.Uuid
+  quantity    Decimal  @db.Decimal(18, 3)
+  lotNo       String?
+  serialNos   String[]
+
+  delivery  DeliveryNote   @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  orderLine SalesOrderLine @relation(fields: [orderLineId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([deliveryId])
+  @@map("delivery_note_lines")
+}
+
+/// Satış faturası (FTR): delivered goods and performed services, debited to the customer.
+model SalesInvoice {
+  id            String        @id @default(uuid()) @db.Uuid
+  companyId     String        @db.Uuid
+  number        String
+  partnerId     String        @db.Uuid
+  orderId       String?       @db.Uuid
+  invoiceDate   DateTime      @db.Date
+  dueDate       DateTime      @db.Date
+  currencyCode  String
+  exchangeRate  Decimal       @db.Decimal(18, 6)
+  status        InvoiceStatus @default(ISSUED)
+  paymentStatus PaymentStatus @default(UNPAID)
+  /// Allocated collections and returns, document currency.
+  paidAmount    Decimal       @default(0) @db.Decimal(18, 2)
+  notes         String?
+  subtotal      Decimal       @db.Decimal(18, 2)
+  discountTotal Decimal       @db.Decimal(18, 2)
+  vatTotal      Decimal       @db.Decimal(18, 2)
+  grandTotal    Decimal       @db.Decimal(18, 2)
+  createdById   String        @db.Uuid
+  cancelledAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  company   Company            @relation(fields: [companyId], references: [id])
+  partner   BusinessPartner    @relation(fields: [partnerId], references: [id])
+  order     SalesOrder?        @relation(fields: [orderId], references: [id])
+  createdBy User               @relation("SalesInvoiceCreatedBy", fields: [createdById], references: [id])
+  lines     SalesInvoiceLine[]
+  returns   SalesReturn[]
+
+  @@unique([companyId, number])
+  @@index([companyId, partnerId, status])
+  @@map("sales_invoices")
+}
+
+model SalesInvoiceLine {
+  id           String  @id @default(uuid()) @db.Uuid
+  invoiceId    String  @db.Uuid
+  lineNo       Int
+  orderLineId  String? @db.Uuid
+  variantId    String? @db.Uuid
+  description  String
+  quantity     Decimal @db.Decimal(18, 3)
+  returnedQty  Decimal @default(0) @db.Decimal(18, 3)
+  unitPrice    Decimal @db.Decimal(18, 4)
+  discountRate Decimal @default(0) @db.Decimal(5, 2)
+  vatRate      Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+
+  invoice     SalesInvoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderLine   SalesOrderLine?   @relation(fields: [orderLineId], references: [id])
+  variant     ProductVariant?   @relation(fields: [variantId], references: [id])
+  returnLines SalesReturnLine[]
+
+  @@index([invoiceId])
+  @@map("sales_invoice_lines")
+}
+
+/// Satış iadesi (IAD): returned goods come back to stock (RECEIPT) and the customer is
+/// credited at the invoiced price (credit note).
+model SalesReturn {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @db.Uuid
+  number          String
+  invoiceId       String   @db.Uuid
+  partnerId       String   @db.Uuid
+  warehouseId     String   @db.Uuid
+  returnDate      DateTime @db.Date
+  reason          String
+  currencyCode    String
+  exchangeRate    Decimal  @db.Decimal(18, 6)
+  subtotal        Decimal  @db.Decimal(18, 2)
+  discountTotal   Decimal  @db.Decimal(18, 2)
+  vatTotal        Decimal  @db.Decimal(18, 2)
+  grandTotal      Decimal  @db.Decimal(18, 2)
+  stockMovementId String?  @unique @db.Uuid
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  company       Company           @relation(fields: [companyId], references: [id])
+  invoice       SalesInvoice      @relation(fields: [invoiceId], references: [id])
+  partner       BusinessPartner   @relation(fields: [partnerId], references: [id])
+  warehouse     Warehouse         @relation(fields: [warehouseId], references: [id])
+  stockMovement StockMovement?    @relation(fields: [stockMovementId], references: [id])
+  createdBy     User              @relation("SalesReturnCreatedBy", fields: [createdById], references: [id])
+  lines         SalesReturnLine[]
+
+  @@unique([companyId, number])
+  @@index([invoiceId])
+  @@map("sales_returns")
+}
+
+model SalesReturnLine {
+  id            String   @id @default(uuid()) @db.Uuid
+  returnId      String   @db.Uuid
+  lineNo        Int
+  invoiceLineId String   @db.Uuid
+  variantId     String?  @db.Uuid
+  description   String
+  quantity      Decimal  @db.Decimal(18, 3)
+  unitPrice     Decimal  @db.Decimal(18, 4)
+  discountRate  Decimal  @default(0) @db.Decimal(5, 2)
+  vatRate       Decimal  @default(0) @db.Decimal(5, 2)
+  lineTotal     Decimal  @db.Decimal(18, 2)
+  lotNo         String?
+  serialNos     String[]
+
+  salesReturn SalesReturn      @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  invoiceLine SalesInvoiceLine @relation(fields: [invoiceLineId], references: [id])
+  variant     ProductVariant?  @relation(fields: [variantId], references: [id])
+
+  @@index([returnId])
+  @@map("sales_return_lines")
+}

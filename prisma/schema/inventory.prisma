@@ -109,6 +109,12 @@ model ProductVariant {
   orderLines    PurchaseOrderLine[]
   receiptLines  GoodsReceiptLine[]
   pInvoiceLines PurchaseInvoiceLine[]
+  sQuoteLines   SalesQuoteLine[]
+  sOrderLines   SalesOrderLine[]
+  reservations  StockReservation[]
+  deliveryLines DeliveryNoteLine[]
+  sInvoiceLines SalesInvoiceLine[]
+  sReturnLines  SalesReturnLine[]
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -138,6 +144,10 @@ model Warehouse {
   counts         StockCount[]
   purchaseOrders PurchaseOrder[]
   goodsReceipts  GoodsReceipt[]
+  salesOrders    SalesOrder[]
+  reservations   StockReservation[]
+  deliveryNotes  DeliveryNote[]
+  salesReturns   SalesReturn[]
 
   @@unique([companyId, code])
   @@map("warehouses")
@@ -241,6 +251,8 @@ model StockMovement {
   transactions    StockTransaction[]
   stockCount      StockCount?
   goodsReceipt    GoodsReceipt?
+  deliveryNote    DeliveryNote?
+  salesReturn     SalesReturn?
 
   @@unique([companyId, number])
   @@index([companyId, movementDate])

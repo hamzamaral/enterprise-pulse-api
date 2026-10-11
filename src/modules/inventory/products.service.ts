@@ -270,10 +270,16 @@ export class ProductsService {
           where: query.warehouseId ? { warehouseId: query.warehouseId } : undefined,
           select: { quantity: true },
         },
+        reservations: {
+          where: query.warehouseId ? { warehouseId: query.warehouseId } : undefined,
+          select: { quantity: true },
+        },
       },
       orderBy: { sku: 'asc' },
       take: 20,
     });
+    const sum = (items: { quantity: Prisma.Decimal }[]) =>
+      items.reduce((total, item) => total.plus(item.quantity), new Prisma.Decimal(0));
     return rows.map((row) => ({
       variantId: row.id,
       productId: row.productId,
@@ -284,7 +290,9 @@ export class ProductsService {
       productType: row.product.type,
       trackingType: row.product.trackingType,
       averageCost: unitCost(row.averageCost),
-      onHand: qty(row.balances.reduce((sum, b) => sum.plus(b.quantity), new Prisma.Decimal(0))),
+      onHand: qty(sum(row.balances)),
+      reserved: qty(sum(row.reservations)),
+      available: qty(sum(row.balances).minus(sum(row.reservations))),
       purchasePrice: row.product.purchasePrice?.toFixed(2) ?? null,
       salePrice: row.product.salePrice?.toFixed(2) ?? null,
       priceCurrency: row.product.currency,

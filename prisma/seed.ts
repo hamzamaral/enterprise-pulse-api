@@ -20,6 +20,7 @@ import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
 import { seedInventory } from './seed-inventory';
+import { seedSales } from './seed-sales';
 import { seedPartners, seedPurchasing } from './seed-trade';
 
 const prisma = new PrismaClient();
@@ -180,8 +181,11 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['SUPPLIER_QUOTE', 'Tedarikçi Teklifi', 'TKL'],
     ['GOODS_RECEIPT', 'Mal Kabul', 'MKB'],
     ['PURCHASE_INVOICE', 'Alış Faturası', 'ALF'],
+    ['SALES_QUOTE', 'Satış Teklifi', 'STK'],
     ['SALES_ORDER', 'Satış Siparişi', 'SPS'],
-    ['INVOICE', 'Fatura', 'FTR'],
+    ['DELIVERY_NOTE', 'İrsaliye', 'IRS'],
+    ['SALES_INVOICE', 'Satış Faturası', 'FTR'],
+    ['SALES_RETURN', 'Satış İadesi', 'IAD'],
     ['ASSET', 'Demirbaş', 'DMB'],
     ['ASSET_ASSIGNMENT', 'Zimmet Tutanağı', 'ZMT'],
     ['ASSET_COUNT', 'Demirbaş Sayımı', 'DSY'],
@@ -206,6 +210,10 @@ async function seedCompany(code: string, name: string, branches: [string, string
       update: {},
     });
   }
+  // Renamed to SALES_INVOICE; drop the unused old series of earlier seeds.
+  await prisma.numberSequence.deleteMany({
+    where: { companyId: company.id, code: 'INVOICE', nextValue: 1 },
+  });
 
   await prisma.setting.upsert({
     where: { companyId_key: { companyId: company.id, key: 'general' } },
@@ -1260,6 +1268,14 @@ async function main() {
     adminId: admin.id,
     managerId: manager.id,
     employeeId: employee.id,
+    partners,
+  });
+
+  console.log('Seeding sales...');
+  await seedSales(prisma, {
+    companyId: pulse.id,
+    adminId: admin.id,
+    managerId: manager.id,
     partners,
   });
 

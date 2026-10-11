@@ -83,3 +83,19 @@ export class DocumentTotalsDto {
   /** Grand total in the company's base currency. */
   grandTotalBase: string;
 }
+
+export class CancelDocumentDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  reason?: string;
+}
+
+export class LinkedDocumentDto {
+  id: string;
+  number: string;
+  date: string;
+  status: string;
+  /** Grand total in document currency, when the document has amounts. */
+  total: string | null;
+}

@@ -69,6 +69,10 @@ export class StockItemDto {
   trackingType: TrackingType;
   averageCost: string;
   onHand: string;
+  /** Reserved for approved sales orders (same scope as `onHand`). */
+  reserved: string;
+  /** On hand minus reserved. */
+  available: string;
   purchasePrice: string | null;
   salePrice: string | null;
   priceCurrency: string;

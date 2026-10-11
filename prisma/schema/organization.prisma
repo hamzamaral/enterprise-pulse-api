@@ -61,6 +61,12 @@ model Company {
   purchaseOrders      PurchaseOrder[]
   goodsReceipts       GoodsReceipt[]
   purchaseInvoices    PurchaseInvoice[]
+  salesQuotes         SalesQuote[]
+  salesOrders         SalesOrder[]
+  stockReservations   StockReservation[]
+  deliveryNotes       DeliveryNote[]
+  salesInvoices       SalesInvoice[]
+  salesReturns        SalesReturn[]
 
   @@map("companies")
 }

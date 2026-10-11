@@ -4,13 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  InvoiceStatus,
-  LedgerDocumentType,
-  PaymentStatus,
-  Prisma,
-  PurchaseOrderStatus,
-} from '@prisma/client';
+import { InvoiceStatus, LedgerDocumentType, Prisma, PurchaseOrderStatus } from '@prisma/client';
 import type { AuthUser } from '../../common/auth/auth-user';
 import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/paginate';
@@ -19,6 +13,7 @@ import { NumberingService } from '../numbering/numbering.service';
 import { PartnerLedgerService } from '../partners/partner-ledger.service';
 import { PartnersService, SUPPLIER_TYPES } from '../partners/partners.service';
 import {
+  isOverdue,
   isStocked,
   qty,
   toLineDto,
@@ -291,18 +286,6 @@ export class PurchaseInvoicesService {
     });
     return this.findOne(companyId, id);
   }
-}
-
-export function isOverdue(row: {
-  status: InvoiceStatus;
-  paymentStatus: PaymentStatus;
-  dueDate: Date;
-}): boolean {
-  return (
-    row.status === InvoiceStatus.ISSUED &&
-    row.paymentStatus !== PaymentStatus.PAID &&
-    row.dueDate < today()
-  );
 }
 
 function toDto(row: ListRow): PurchaseInvoiceDto {

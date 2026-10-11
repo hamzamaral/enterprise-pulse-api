@@ -30,28 +30,15 @@ import { PaginationQueryDto } from '../../../common/pagination/pagination.dto';
 import {
   CurrencyInputDto,
   DocumentTotalsDto,
+  LinkedDocumentDto,
   TradeLineDto,
   TradeLineInputDto,
 } from '../../partners/dto/trade.dto';
 
+export { CancelDocumentDto, LinkedDocumentDto } from '../../partners/dto/trade.dto';
+
 const toBoolean = ({ value }: { value: unknown }) =>
   value === true || value === 'true' ? true : value === false || value === 'false' ? false : value;
-
-export class CancelDocumentDto {
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  reason?: string;
-}
-
-export class LinkedDocumentDto {
-  id: string;
-  number: string;
-  date: string;
-  status: string;
-  /** Grand total in document currency, when the document has amounts. */
-  total: string | null;
-}
 
 // ---------- Purchase requests ----------
 

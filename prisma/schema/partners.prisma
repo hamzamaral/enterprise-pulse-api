@@ -45,6 +45,11 @@ model BusinessPartner {
   purchaseOrders   PurchaseOrder[]
   goodsReceipts    GoodsReceipt[]
   purchaseInvoices PurchaseInvoice[]
+  salesQuotes      SalesQuote[]
+  salesOrders      SalesOrder[]
+  deliveryNotes    DeliveryNote[]
+  salesInvoices    SalesInvoice[]
+  salesReturns     SalesReturn[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

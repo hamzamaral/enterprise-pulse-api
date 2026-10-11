@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { Prisma, ProductType } from '@prisma/client';
+import { InvoiceStatus, PaymentStatus, Prisma, ProductType } from '@prisma/client';
+import { parseDateOnly } from '../../common/dates/date-only';
 import { documentAmounts, lineAmounts, toBase } from '../../common/money/document-totals';
 import type { PrismaTx } from '../../infrastructure/prisma/prisma.service';
 import type { DocumentTotalsDto, TradeLineDto, TradeLineInputDto } from './dto/trade.dto';
@@ -208,4 +209,24 @@ export function netUnitCostBase(
     .dividedBy(100)
     .times(exchangeRate)
     .toDecimalPlaces(4);
+}
+
+/** Issued, not fully paid and past its due date. */
+export function isOverdue(row: {
+  status: InvoiceStatus;
+  paymentStatus: PaymentStatus;
+  dueDate: Date;
+}): boolean {
+  const today = parseDateOnly(new Date().toISOString().slice(0, 10));
+  return (
+    row.status === InvoiceStatus.ISSUED &&
+    row.paymentStatus !== PaymentStatus.PAID &&
+    row.dueDate < today
+  );
+}
+
+/** Payment status of an invoice from its allocated amount. */
+export function paymentStatusOf(paid: Prisma.Decimal, grandTotal: Prisma.Decimal): PaymentStatus {
+  if (paid.lte(0)) return PaymentStatus.UNPAID;
+  return paid.greaterThanOrEqualTo(grandTotal) ? PaymentStatus.PAID : PaymentStatus.PARTIALLY_PAID;
 }

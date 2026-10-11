@@ -38,6 +38,12 @@ model User {
   approvedOrders      PurchaseOrder[]      @relation("PurchaseOrderApprovedBy")
   goodsReceipts       GoodsReceipt[]       @relation("GoodsReceiptCreatedBy")
   purchaseInvoices    PurchaseInvoice[]    @relation("PurchaseInvoiceCreatedBy")
+  salesQuotes         SalesQuote[]         @relation("SalesQuoteCreatedBy")
+  salesOrders         SalesOrder[]         @relation("SalesOrderCreatedBy")
+  approvedSalesOrders SalesOrder[]         @relation("SalesOrderApprovedBy")
+  deliveryNotes       DeliveryNote[]       @relation("DeliveryNoteCreatedBy")
+  salesInvoices       SalesInvoice[]       @relation("SalesInvoiceCreatedBy")
+  salesReturns        SalesReturn[]        @relation("SalesReturnCreatedBy")
 
   @@map("users")
 }
