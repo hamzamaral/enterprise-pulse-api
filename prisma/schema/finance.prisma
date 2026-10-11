@@ -1,0 +1,233 @@
+enum TreasuryAccountType {
+  CASH
+  BANK
+}
+
+/// What created a cash / bank transaction; `documentId` points into the matching table.
+enum TreasuryDocumentType {
+  OPENING
+  COLLECTION
+  PAYMENT
+  CHEQUE_COLLECTION
+  CHEQUE_PAYMENT
+}
+
+enum PaymentDirection {
+  /// Collection (tahsilat) from a partner.
+  IN
+  /// Payment (ödeme) to a partner.
+  OUT
+}
+
+enum PaymentMethod {
+  CASH
+  BANK
+  CHEQUE
+  NOTE
+}
+
+enum PaymentRecordStatus {
+  POSTED
+  CANCELLED
+}
+
+enum ChequeKind {
+  /// Çek: drawn on a bank account.
+  CHEQUE
+  /// Senet: promissory note.
+  NOTE
+}
+
+enum ChequeDirection {
+  /// Received from a customer (müşteri çeki / senedi).
+  RECEIVED
+  /// Issued by the company (kendi çekimiz / borç senedi).
+  ISSUED
+}
+
+enum ChequeStatus {
+  PORTFOLIO
+  DEPOSITED
+  COLLECTED
+  ENDORSED
+  BOUNCED
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+/// Cash box (kasa) or bank account; balances are kept in the account currency.
+model TreasuryAccount {
+  id           String              @id @default(uuid()) @db.Uuid
+  companyId    String              @db.Uuid
+  code         String
+  name         String
+  type         TreasuryAccountType
+  currencyCode String
+  bankName     String?
+  branchName   String?
+  iban         String?
+  isActive     Boolean             @default(true)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  company      Company               @relation(fields: [companyId], references: [id])
+  transactions TreasuryTransaction[]
+  payments     PartnerPayment[]
+  cheques      Cheque[]
+  chequeEvents ChequeEvent[]
+
+  @@unique([companyId, code])
+  @@map("treasury_accounts")
+}
+
+/// Cash / bank ledger. Immutable: corrections are reversing entries.
+model TreasuryTransaction {
+  id             String               @id @default(uuid()) @db.Uuid
+  /// Posting order for running balances.
+  seq            BigInt               @default(autoincrement())
+  companyId      String               @db.Uuid
+  accountId      String               @db.Uuid
+  txDate         DateTime             @db.Date
+  documentType   TreasuryDocumentType
+  documentId     String?              @db.Uuid
+  documentNumber String
+  description    String?
+  /// Amounts in the account currency.
+  amountIn       Decimal              @default(0) @db.Decimal(18, 2)
+  amountOut      Decimal              @default(0) @db.Decimal(18, 2)
+  reversesId     String?              @unique @db.Uuid
+  createdById    String               @db.Uuid
+  createdAt      DateTime             @default(now())
+
+  company   Company              @relation(fields: [companyId], references: [id])
+  account   TreasuryAccount      @relation(fields: [accountId], references: [id])
+  reverses  TreasuryTransaction? @relation("TreasuryReversal", fields: [reversesId], references: [id])
+  reversal  TreasuryTransaction? @relation("TreasuryReversal")
+  createdBy User                 @relation("TreasuryTxCreatedBy", fields: [createdById], references: [id])
+
+  @@index([companyId, accountId, seq])
+  @@index([documentType, documentId])
+  @@map("treasury_transactions")
+}
+
+/// Collection (TAH) or payment (ODM): posts to the partner ledger and, for cash and bank, to the
+/// account; cheques and notes create or endorse a `Cheque` instead.
+model PartnerPayment {
+  id           String              @id @default(uuid()) @db.Uuid
+  companyId    String              @db.Uuid
+  number       String
+  direction    PaymentDirection
+  method       PaymentMethod
+  partnerId    String              @db.Uuid
+  paymentDate  DateTime            @db.Date
+  accountId    String?             @db.Uuid
+  amount       Decimal             @db.Decimal(18, 2)
+  currencyCode String
+  exchangeRate Decimal             @db.Decimal(18, 6)
+  amountBase   Decimal             @db.Decimal(18, 2)
+  description  String?
+  status       PaymentRecordStatus @default(POSTED)
+  cancelledAt  DateTime?
+  createdById  String              @db.Uuid
+  createdAt    DateTime            @default(now())
+
+  company        Company             @relation(fields: [companyId], references: [id])
+  partner        BusinessPartner     @relation(fields: [partnerId], references: [id])
+  account        TreasuryAccount?    @relation(fields: [accountId], references: [id])
+  createdBy      User                @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+  allocations    PaymentAllocation[]
+  /// Cheque received (IN) or issued (OUT) by this payment.
+  originCheque   Cheque?             @relation("ChequeOrigin")
+  /// Portfolio cheque endorsed to the supplier by this payment.
+  endorsedCheque Cheque?             @relation("ChequeEndorsement")
+
+  @@unique([companyId, number])
+  @@index([companyId, direction, paymentDate])
+  @@index([companyId, partnerId])
+  @@map("partner_payments")
+}
+
+/// Part of a payment settled against one invoice, in the shared document currency.
+model PaymentAllocation {
+  id                String   @id @default(uuid()) @db.Uuid
+  paymentId         String   @db.Uuid
+  salesInvoiceId    String?  @db.Uuid
+  purchaseInvoiceId String?  @db.Uuid
+  amount            Decimal  @db.Decimal(18, 2)
+  createdAt         DateTime @default(now())
+
+  payment         PartnerPayment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  salesInvoice    SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+
+  @@index([paymentId])
+  @@index([salesInvoiceId])
+  @@index([purchaseInvoiceId])
+  @@map("payment_allocations")
+}
+
+/// Cheque (CEK) or promissory note (SNT) with its portfolio lifecycle.
+model Cheque {
+  id                   String          @id @default(uuid()) @db.Uuid
+  companyId            String          @db.Uuid
+  number               String
+  kind                 ChequeKind
+  direction            ChequeDirection
+  status               ChequeStatus
+  /// Number printed on the cheque / note.
+  serialNo             String
+  bankName             String?
+  branchName           String?
+  /// Keşideci (who signed it); defaults to the partner for received documents.
+  drawer               String?
+  issueDate            DateTime        @db.Date
+  dueDate              DateTime        @db.Date
+  amount               Decimal         @db.Decimal(18, 2)
+  currencyCode         String
+  exchangeRate         Decimal         @db.Decimal(18, 6)
+  /// Customer it was received from, or supplier it was issued to.
+  partnerId            String          @db.Uuid
+  /// Supplier a received cheque was endorsed to (ciro).
+  endorsedToId         String?         @db.Uuid
+  /// Bank account it was deposited to / collected into / is drawn on.
+  accountId            String?         @db.Uuid
+  originPaymentId      String          @unique @db.Uuid
+  endorsementPaymentId String?         @unique @db.Uuid
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  company            Company          @relation(fields: [companyId], references: [id])
+  partner            BusinessPartner  @relation("ChequePartner", fields: [partnerId], references: [id])
+  endorsedTo         BusinessPartner? @relation("ChequeEndorsedTo", fields: [endorsedToId], references: [id])
+  account            TreasuryAccount? @relation(fields: [accountId], references: [id])
+  originPayment      PartnerPayment   @relation("ChequeOrigin", fields: [originPaymentId], references: [id])
+  endorsementPayment PartnerPayment?  @relation("ChequeEndorsement", fields: [endorsementPaymentId], references: [id])
+  events             ChequeEvent[]
+
+  @@unique([companyId, number])
+  @@index([companyId, direction, status, dueDate])
+  @@map("cheques")
+}
+
+/// Status history of a cheque / note.
+model ChequeEvent {
+  id          String        @id @default(uuid()) @db.Uuid
+  chequeId    String        @db.Uuid
+  eventDate   DateTime      @db.Date
+  fromStatus  ChequeStatus?
+  toStatus    ChequeStatus
+  accountId   String?       @db.Uuid
+  partnerId   String?       @db.Uuid
+  note        String?
+  createdById String        @db.Uuid
+  createdAt   DateTime      @default(now())
+
+  cheque    Cheque           @relation(fields: [chequeId], references: [id], onDelete: Cascade)
+  account   TreasuryAccount? @relation(fields: [accountId], references: [id])
+  partner   BusinessPartner? @relation("ChequeEventPartner", fields: [partnerId], references: [id])
+  createdBy User             @relation("ChequeEventCreatedBy", fields: [createdById], references: [id])
+
+  @@index([chequeId, createdAt])
+  @@map("cheque_events")
+}

@@ -19,6 +19,7 @@ import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
+import { seedFinance } from './seed-finance';
 import { seedInventory } from './seed-inventory';
 import { seedSales } from './seed-sales';
 import { seedPartners, seedPurchasing } from './seed-trade';
@@ -186,6 +187,10 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['DELIVERY_NOTE', 'İrsaliye', 'IRS'],
     ['SALES_INVOICE', 'Satış Faturası', 'FTR'],
     ['SALES_RETURN', 'Satış İadesi', 'IAD'],
+    ['COLLECTION', 'Tahsilat', 'TAH'],
+    ['PAYMENT', 'Ödeme', 'ODM'],
+    ['CHEQUE', 'Çek', 'CEK'],
+    ['PROMISSORY_NOTE', 'Senet', 'SNT'],
     ['ASSET', 'Demirbaş', 'DMB'],
     ['ASSET_ASSIGNMENT', 'Zimmet Tutanağı', 'ZMT'],
     ['ASSET_COUNT', 'Demirbaş Sayımı', 'DSY'],
@@ -1278,6 +1283,9 @@ async function main() {
     managerId: manager.id,
     partners,
   });
+
+  console.log('Seeding finance...');
+  await seedFinance(prisma, { companyId: pulse.id, adminId: admin.id, partners });
 
   console.log('Seed completed.');
 }

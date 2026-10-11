@@ -25,6 +25,7 @@ import { AssetsModule } from './modules/assets/assets.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { HrModule } from './modules/hr/hr.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { FinanceModule } from './modules/finance/finance.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PartnersModule } from './modules/partners/partners.module';
@@ -80,6 +81,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     PartnersModule,
     PurchasingModule,
     SalesModule,
+    FinanceModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -225,12 +225,13 @@ model SalesInvoice {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  company   Company            @relation(fields: [companyId], references: [id])
-  partner   BusinessPartner    @relation(fields: [partnerId], references: [id])
-  order     SalesOrder?        @relation(fields: [orderId], references: [id])
-  createdBy User               @relation("SalesInvoiceCreatedBy", fields: [createdById], references: [id])
-  lines     SalesInvoiceLine[]
-  returns   SalesReturn[]
+  company     Company             @relation(fields: [companyId], references: [id])
+  partner     BusinessPartner     @relation(fields: [partnerId], references: [id])
+  order       SalesOrder?         @relation(fields: [orderId], references: [id])
+  createdBy   User                @relation("SalesInvoiceCreatedBy", fields: [createdById], references: [id])
+  lines       SalesInvoiceLine[]
+  returns     SalesReturn[]
+  allocations PaymentAllocation[]
 
   @@unique([companyId, number])
   @@index([companyId, partnerId, status])

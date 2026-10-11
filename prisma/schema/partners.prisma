@@ -50,6 +50,10 @@ model BusinessPartner {
   deliveryNotes    DeliveryNote[]
   salesInvoices    SalesInvoice[]
   salesReturns     SalesReturn[]
+  payments         PartnerPayment[]
+  cheques          Cheque[]             @relation("ChequePartner")
+  endorsedCheques  Cheque[]             @relation("ChequeEndorsedTo")
+  chequeEvents     ChequeEvent[]        @relation("ChequeEventPartner")
 
   @@unique([companyId, code])
   @@index([companyId, type])

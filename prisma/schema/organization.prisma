@@ -67,6 +67,10 @@ model Company {
   deliveryNotes       DeliveryNote[]
   salesInvoices       SalesInvoice[]
   salesReturns        SalesReturn[]
+  treasuryAccounts    TreasuryAccount[]
+  treasuryTxs         TreasuryTransaction[]
+  partnerPayments     PartnerPayment[]
+  cheques             Cheque[]
 
   @@map("companies")
 }

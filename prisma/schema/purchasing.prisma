@@ -280,11 +280,12 @@ model PurchaseInvoice {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  company   Company               @relation(fields: [companyId], references: [id])
-  partner   BusinessPartner       @relation(fields: [partnerId], references: [id])
-  order     PurchaseOrder?        @relation(fields: [orderId], references: [id])
-  createdBy User                  @relation("PurchaseInvoiceCreatedBy", fields: [createdById], references: [id])
-  lines     PurchaseInvoiceLine[]
+  company     Company               @relation(fields: [companyId], references: [id])
+  partner     BusinessPartner       @relation(fields: [partnerId], references: [id])
+  order       PurchaseOrder?        @relation(fields: [orderId], references: [id])
+  createdBy   User                  @relation("PurchaseInvoiceCreatedBy", fields: [createdById], references: [id])
+  lines       PurchaseInvoiceLine[]
+  allocations PaymentAllocation[]
 
   @@unique([companyId, number])
   @@index([companyId, partnerId, status])
