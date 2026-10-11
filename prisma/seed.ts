@@ -20,7 +20,7 @@ import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
 import { seedInventory } from './seed-inventory';
-import { seedPartners } from './seed-trade';
+import { seedPartners, seedPurchasing } from './seed-trade';
 
 const prisma = new PrismaClient();
 const YEAR = new Date().getFullYear();
@@ -177,6 +177,9 @@ async function seedCompany(code: string, name: string, branches: [string, string
   const sequences: [string, string, string, boolean?][] = [
     ['PURCHASE_REQUEST', 'Satın Alma Talebi', 'STA'],
     ['PURCHASE_ORDER', 'Satın Alma Siparişi', 'SAS'],
+    ['SUPPLIER_QUOTE', 'Tedarikçi Teklifi', 'TKL'],
+    ['GOODS_RECEIPT', 'Mal Kabul', 'MKB'],
+    ['PURCHASE_INVOICE', 'Alış Faturası', 'ALF'],
     ['SALES_ORDER', 'Satış Siparişi', 'SPS'],
     ['INVOICE', 'Fatura', 'FTR'],
     ['ASSET', 'Demirbaş', 'DMB'],
@@ -1185,7 +1188,7 @@ async function main() {
   await seedInventory(prisma, pulse.id, admin.id);
 
   console.log('Seeding partners...');
-  await seedPartners(prisma, pulse.id);
+  const partners = await seedPartners(prisma, pulse.id);
 
   console.log('Seeding workflow...');
   const definition = await prisma.workflowDefinition.upsert({
@@ -1250,6 +1253,15 @@ async function main() {
       ],
     });
   }
+
+  console.log('Seeding purchasing...');
+  await seedPurchasing(prisma, {
+    companyId: pulse.id,
+    adminId: admin.id,
+    managerId: manager.id,
+    employeeId: employee.id,
+    partners,
+  });
 
   console.log('Seed completed.');
 }

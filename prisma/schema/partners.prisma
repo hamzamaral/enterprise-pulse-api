@@ -39,8 +39,12 @@ model BusinessPartner {
   updatedAt       DateTime    @updatedAt
   deletedAt       DateTime?
 
-  company       Company              @relation(fields: [companyId], references: [id])
-  ledgerEntries PartnerLedgerEntry[]
+  company          Company              @relation(fields: [companyId], references: [id])
+  ledgerEntries    PartnerLedgerEntry[]
+  supplierQuotes   SupplierQuote[]
+  purchaseOrders   PurchaseOrder[]
+  goodsReceipts    GoodsReceipt[]
+  purchaseInvoices PurchaseInvoice[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

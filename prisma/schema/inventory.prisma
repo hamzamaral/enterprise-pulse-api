@@ -96,14 +96,19 @@ model ProductVariant {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  company      Company             @relation(fields: [companyId], references: [id])
-  product      Product             @relation(fields: [productId], references: [id])
-  balances     StockBalance[]
-  lots         StockLot[]
-  serials      SerialNumber[]
-  moveLines    StockMovementLine[]
-  transactions StockTransaction[]
-  countLines   StockCountLine[]
+  company       Company               @relation(fields: [companyId], references: [id])
+  product       Product               @relation(fields: [productId], references: [id])
+  balances      StockBalance[]
+  lots          StockLot[]
+  serials       SerialNumber[]
+  moveLines     StockMovementLine[]
+  transactions  StockTransaction[]
+  countLines    StockCountLine[]
+  requestLines  PurchaseRequestLine[]
+  quoteLines    SupplierQuoteLine[]
+  orderLines    PurchaseOrderLine[]
+  receiptLines  GoodsReceiptLine[]
+  pInvoiceLines PurchaseInvoiceLine[]
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -122,15 +127,17 @@ model Warehouse {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company      Company            @relation(fields: [companyId], references: [id])
-  branch       Branch?            @relation(fields: [branchId], references: [id])
-  balances     StockBalance[]
-  lotBalances  LotBalance[]
-  serials      SerialNumber[]
-  outgoing     StockMovement[]    @relation("MovementSource")
-  incoming     StockMovement[]    @relation("MovementTarget")
-  transactions StockTransaction[]
-  counts       StockCount[]
+  company        Company            @relation(fields: [companyId], references: [id])
+  branch         Branch?            @relation(fields: [branchId], references: [id])
+  balances       StockBalance[]
+  lotBalances    LotBalance[]
+  serials        SerialNumber[]
+  outgoing       StockMovement[]    @relation("MovementSource")
+  incoming       StockMovement[]    @relation("MovementTarget")
+  transactions   StockTransaction[]
+  counts         StockCount[]
+  purchaseOrders PurchaseOrder[]
+  goodsReceipts  GoodsReceipt[]
 
   @@unique([companyId, code])
   @@map("warehouses")
@@ -233,6 +240,7 @@ model StockMovement {
   lines           StockMovementLine[]
   transactions    StockTransaction[]
   stockCount      StockCount?
+  goodsReceipt    GoodsReceipt?
 
   @@unique([companyId, number])
   @@index([companyId, movementDate])

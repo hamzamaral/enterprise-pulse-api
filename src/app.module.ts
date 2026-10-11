@@ -28,6 +28,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PartnersModule } from './modules/partners/partners.module';
+import { PurchasingModule } from './modules/purchasing/purchasing.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { UsersModule } from './modules/users/users.module';
@@ -76,6 +77,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     AssetsModule,
     InventoryModule,
     PartnersModule,
+    PurchasingModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

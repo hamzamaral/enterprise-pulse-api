@@ -1,0 +1,313 @@
+enum PurchaseRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+  /// A supplier quote of the request was accepted and turned into an order.
+  ORDERED
+}
+
+enum SupplierQuoteStatus {
+  OPEN
+  ACCEPTED
+  REJECTED
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  APPROVED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+/// Satın alma talebi (STA); approved through the PURCHASE_REQUEST workflow.
+model PurchaseRequest {
+  id                 String                @id @default(uuid()) @db.Uuid
+  companyId          String                @db.Uuid
+  number             String
+  title              String
+  requestDate        DateTime              @db.Date
+  neededBy           DateTime?             @db.Date
+  departmentId       String?               @db.Uuid
+  notes              String?
+  status             PurchaseRequestStatus @default(PENDING)
+  workflowInstanceId String?               @db.Uuid
+  decidedAt          DateTime?
+  requestedById      String                @db.Uuid
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  company     Company               @relation(fields: [companyId], references: [id])
+  department  Department?           @relation(fields: [departmentId], references: [id])
+  requestedBy User                  @relation("PurchaseRequestRequestedBy", fields: [requestedById], references: [id])
+  lines       PurchaseRequestLine[]
+  quotes      SupplierQuote[]
+  orders      PurchaseOrder[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestLine {
+  id             String   @id @default(uuid()) @db.Uuid
+  requestId      String   @db.Uuid
+  lineNo         Int
+  /// Null for free-text requests ("ergonomic chair"); quotes can then name a product.
+  variantId      String?  @db.Uuid
+  description    String
+  quantity       Decimal  @db.Decimal(18, 3)
+  estimatedPrice Decimal? @db.Decimal(18, 4)
+
+  request    PurchaseRequest     @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  variant    ProductVariant?     @relation(fields: [variantId], references: [id])
+  quoteLines SupplierQuoteLine[]
+  orderLines PurchaseOrderLine[]
+
+  @@index([requestId])
+  @@map("purchase_request_lines")
+}
+
+/// Supplier offer (TKL), optionally answering a purchase request; compared side by side.
+model SupplierQuote {
+  id            String              @id @default(uuid()) @db.Uuid
+  companyId     String              @db.Uuid
+  number        String
+  requestId     String?             @db.Uuid
+  partnerId     String              @db.Uuid
+  quoteDate     DateTime            @db.Date
+  validUntil    DateTime?           @db.Date
+  deliveryDays  Int?
+  currencyCode  String
+  exchangeRate  Decimal             @db.Decimal(18, 6)
+  status        SupplierQuoteStatus @default(OPEN)
+  notes         String?
+  subtotal      Decimal             @db.Decimal(18, 2)
+  discountTotal Decimal             @db.Decimal(18, 2)
+  vatTotal      Decimal             @db.Decimal(18, 2)
+  grandTotal    Decimal             @db.Decimal(18, 2)
+  createdById   String              @db.Uuid
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  company   Company             @relation(fields: [companyId], references: [id])
+  request   PurchaseRequest?    @relation(fields: [requestId], references: [id])
+  partner   BusinessPartner     @relation(fields: [partnerId], references: [id])
+  createdBy User                @relation("SupplierQuoteCreatedBy", fields: [createdById], references: [id])
+  lines     SupplierQuoteLine[]
+  order     PurchaseOrder?
+
+  @@unique([companyId, number])
+  @@index([requestId])
+  @@map("supplier_quotes")
+}
+
+model SupplierQuoteLine {
+  id            String  @id @default(uuid()) @db.Uuid
+  quoteId       String  @db.Uuid
+  lineNo        Int
+  requestLineId String? @db.Uuid
+  variantId     String? @db.Uuid
+  description   String
+  quantity      Decimal @db.Decimal(18, 3)
+  unitPrice     Decimal @db.Decimal(18, 4)
+  discountRate  Decimal @default(0) @db.Decimal(5, 2)
+  vatRate       Decimal @default(0) @db.Decimal(5, 2)
+  /// Including VAT, document currency.
+  lineTotal     Decimal @db.Decimal(18, 2)
+
+  quote       SupplierQuote        @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  requestLine PurchaseRequestLine? @relation(fields: [requestLineId], references: [id])
+  variant     ProductVariant?      @relation(fields: [variantId], references: [id])
+
+  @@index([quoteId])
+  @@map("supplier_quote_lines")
+}
+
+/// Satın alma siparişi (SAS). Lines are editable only while DRAFT.
+model PurchaseOrder {
+  id            String              @id @default(uuid()) @db.Uuid
+  companyId     String              @db.Uuid
+  number        String
+  partnerId     String              @db.Uuid
+  requestId     String?             @db.Uuid
+  quoteId       String?             @unique @db.Uuid
+  orderDate     DateTime            @db.Date
+  expectedDate  DateTime?           @db.Date
+  /// Default receiving warehouse.
+  warehouseId   String              @db.Uuid
+  currencyCode  String
+  exchangeRate  Decimal             @db.Decimal(18, 6)
+  status        PurchaseOrderStatus @default(DRAFT)
+  notes         String?
+  subtotal      Decimal             @db.Decimal(18, 2)
+  discountTotal Decimal             @db.Decimal(18, 2)
+  vatTotal      Decimal             @db.Decimal(18, 2)
+  grandTotal    Decimal             @db.Decimal(18, 2)
+  createdById   String              @db.Uuid
+  approvedById  String?             @db.Uuid
+  approvedAt    DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  company    Company             @relation(fields: [companyId], references: [id])
+  partner    BusinessPartner     @relation(fields: [partnerId], references: [id])
+  request    PurchaseRequest?    @relation(fields: [requestId], references: [id])
+  quote      SupplierQuote?      @relation(fields: [quoteId], references: [id])
+  warehouse  Warehouse           @relation(fields: [warehouseId], references: [id])
+  createdBy  User                @relation("PurchaseOrderCreatedBy", fields: [createdById], references: [id])
+  approvedBy User?               @relation("PurchaseOrderApprovedBy", fields: [approvedById], references: [id])
+  lines      PurchaseOrderLine[]
+  receipts   GoodsReceipt[]
+  invoices   PurchaseInvoice[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([partnerId])
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id            String  @id @default(uuid()) @db.Uuid
+  orderId       String  @db.Uuid
+  lineNo        Int
+  requestLineId String? @db.Uuid
+  variantId     String  @db.Uuid
+  description   String
+  quantity      Decimal @db.Decimal(18, 3)
+  receivedQty   Decimal @default(0) @db.Decimal(18, 3)
+  invoicedQty   Decimal @default(0) @db.Decimal(18, 3)
+  unitPrice     Decimal @db.Decimal(18, 4)
+  discountRate  Decimal @default(0) @db.Decimal(5, 2)
+  vatRate       Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal     Decimal @db.Decimal(18, 2)
+
+  order        PurchaseOrder         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  requestLine  PurchaseRequestLine?  @relation(fields: [requestLineId], references: [id])
+  variant      ProductVariant        @relation(fields: [variantId], references: [id])
+  receiptLines GoodsReceiptLine[]
+  invoiceLines PurchaseInvoiceLine[]
+
+  @@index([orderId])
+  @@map("purchase_order_lines")
+}
+
+/// Mal kabul (MKB): received quantities of an order, posted to stock as a RECEIPT movement.
+model GoodsReceipt {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @db.Uuid
+  number          String
+  orderId         String   @db.Uuid
+  partnerId       String   @db.Uuid
+  warehouseId     String   @db.Uuid
+  receiptDate     DateTime @db.Date
+  /// Supplier's delivery note (irsaliye) number.
+  deliveryNoteNo  String?
+  notes           String?
+  /// Null when only services were received.
+  stockMovementId String?  @unique @db.Uuid
+  createdById     String   @db.Uuid
+  createdAt       DateTime @default(now())
+
+  company       Company            @relation(fields: [companyId], references: [id])
+  order         PurchaseOrder      @relation(fields: [orderId], references: [id])
+  partner       BusinessPartner    @relation(fields: [partnerId], references: [id])
+  warehouse     Warehouse          @relation(fields: [warehouseId], references: [id])
+  stockMovement StockMovement?     @relation(fields: [stockMovementId], references: [id])
+  createdBy     User               @relation("GoodsReceiptCreatedBy", fields: [createdById], references: [id])
+  lines         GoodsReceiptLine[]
+
+  @@unique([companyId, number])
+  @@index([orderId])
+  @@map("goods_receipts")
+}
+
+model GoodsReceiptLine {
+  id          String    @id @default(uuid()) @db.Uuid
+  receiptId   String    @db.Uuid
+  orderLineId String    @db.Uuid
+  variantId   String    @db.Uuid
+  quantity    Decimal   @db.Decimal(18, 3)
+  lotNo       String?
+  expiryDate  DateTime? @db.Date
+  serialNos   String[]
+
+  receipt   GoodsReceipt      @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  orderLine PurchaseOrderLine @relation(fields: [orderLineId], references: [id])
+  variant   ProductVariant    @relation(fields: [variantId], references: [id])
+
+  @@index([receiptId])
+  @@map("goods_receipt_lines")
+}
+
+/// Alış faturası (ALF), matched against received quantities and credited to the supplier.
+model PurchaseInvoice {
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @db.Uuid
+  number            String
+  /// Invoice number printed by the supplier.
+  supplierInvoiceNo String
+  partnerId         String        @db.Uuid
+  orderId           String?       @db.Uuid
+  invoiceDate       DateTime      @db.Date
+  dueDate           DateTime      @db.Date
+  currencyCode      String
+  exchangeRate      Decimal       @db.Decimal(18, 6)
+  status            InvoiceStatus @default(ISSUED)
+  paymentStatus     PaymentStatus @default(UNPAID)
+  /// Allocated payments, document currency.
+  paidAmount        Decimal       @default(0) @db.Decimal(18, 2)
+  notes             String?
+  subtotal          Decimal       @db.Decimal(18, 2)
+  discountTotal     Decimal       @db.Decimal(18, 2)
+  vatTotal          Decimal       @db.Decimal(18, 2)
+  grandTotal        Decimal       @db.Decimal(18, 2)
+  createdById       String        @db.Uuid
+  cancelledAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  company   Company               @relation(fields: [companyId], references: [id])
+  partner   BusinessPartner       @relation(fields: [partnerId], references: [id])
+  order     PurchaseOrder?        @relation(fields: [orderId], references: [id])
+  createdBy User                  @relation("PurchaseInvoiceCreatedBy", fields: [createdById], references: [id])
+  lines     PurchaseInvoiceLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, partnerId, status])
+  @@map("purchase_invoices")
+}
+
+model PurchaseInvoiceLine {
+  id           String  @id @default(uuid()) @db.Uuid
+  invoiceId    String  @db.Uuid
+  lineNo       Int
+  orderLineId  String? @db.Uuid
+  variantId    String? @db.Uuid
+  description  String
+  quantity     Decimal @db.Decimal(18, 3)
+  unitPrice    Decimal @db.Decimal(18, 4)
+  discountRate Decimal @default(0) @db.Decimal(5, 2)
+  vatRate      Decimal @default(0) @db.Decimal(5, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+
+  invoice   PurchaseInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  orderLine PurchaseOrderLine? @relation(fields: [orderLineId], references: [id])
+  variant   ProductVariant?    @relation(fields: [variantId], references: [id])
+
+  @@index([invoiceId])
+  @@map("purchase_invoice_lines")
+}

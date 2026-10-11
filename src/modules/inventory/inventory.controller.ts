@@ -59,6 +59,9 @@ import { StockCountsService } from './stock-counts.service';
 import { StockMovementsService } from './stock-movements.service';
 import { StockService } from './stock.service';
 
+/** Item, lot, serial and warehouse pickers are needed on purchasing and sales documents too. */
+const STOCK_LOOKUP = ['inventory:read', 'purchasing:read', 'sales:read'];
+
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller({ path: 'product-categories', version: '1' })
@@ -98,7 +101,7 @@ export class WarehousesController {
   constructor(private readonly settings: InventorySettingsService) {}
 
   @Get()
-  @RequirePermissions('inventory:read')
+  @RequireAnyPermission(...STOCK_LOOKUP)
   @ApiOkResponse({ type: [WarehouseDto] })
   findAll(@CurrentUser('companyId') companyId: string) {
     return this.settings.findWarehouses(companyId);
@@ -204,8 +207,6 @@ export class ProductsController {
 }
 
 /** Item, lot and serial pickers are also used on purchasing and sales documents. */
-const STOCK_LOOKUP = ['inventory:read', 'purchasing:read', 'sales:read'];
-
 @ApiTags('Inventory')
 @ApiBearerAuth()
 @Controller({ path: 'stock', version: '1' })

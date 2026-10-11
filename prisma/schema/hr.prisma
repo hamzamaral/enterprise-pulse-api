@@ -41,6 +41,7 @@ model Department {
   manager          Employee?         @relation("DepartmentManager", fields: [managerId], references: [id])
   employees        Employee[]        @relation("EmployeeDepartment")
   positions        Position[]
+  purchaseRequests PurchaseRequest[]
   assetAssignments AssetAssignment[]
 
   @@unique([companyId, code])
