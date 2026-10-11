@@ -66,6 +66,8 @@ describe('Auth & authorization (e2e)', () => {
       .expect(200);
     expect(me.body.user.email).toBe(ADMIN.email);
     expect(me.body.companies.length).toBeGreaterThan(0);
+    // The demo admin has no personnel record, so self-service screens stay hidden.
+    expect(me.body.employeeId).toBeNull();
   });
 
   it('returns paginated lists', async () => {

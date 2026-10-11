@@ -178,6 +178,10 @@ export class AuthService {
       select: { companyId: true },
     });
     const defaultIds = new Set(defaults.map((d) => d.companyId));
+    const employee = await this.prisma.employee.findFirst({
+      where: { companyId: authUser.companyId, userId: user.id, deletedAt: null },
+      select: { id: true },
+    });
 
     return {
       user: {
@@ -201,6 +205,7 @@ export class AuthService {
       activeCompanyId: authUser.companyId,
       activeBranchId: authUser.branchId,
       permissions: authUser.permissions,
+      employeeId: employee?.id ?? null,
     };
   }
 

@@ -109,6 +109,8 @@ export class MeResponseDto {
   activeCompanyId: string;
   activeBranchId: string | null;
   permissions: string[];
+  /** Employee record linked to the user in the active company; enables self-service screens. */
+  employeeId: string | null;
 }
 
 export class MessageResponseDto {
