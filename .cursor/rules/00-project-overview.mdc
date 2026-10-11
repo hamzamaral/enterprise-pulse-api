@@ -45,6 +45,11 @@ prisma/migrations/       committed migrations, never edited after merge
   (`SELECT … FOR UPDATE`, sorted ids), decrement with a conditional `updateMany` (no row → "Insufficient stock"),
   and append `StockTransaction` ledger rows ordered by `seq`. Corrections are new movements, never edits.
   Call `notifyLowStock` after the transaction commits.
+- Sales reservations (`StockReservation`, one per order line) are created on order approval and reduced by deliveries.
+  ISSUE / TRANSFER postings may not take a balance below other orders' reservations; a delivery passes
+  `{ reservationOrderId }` to `post` so its own reservation does not block it. Available = on hand − reserved.
+- Partner balances only change through `PartnerLedgerService.post` / `reverse` inside the document transaction
+  (invoices debit / credit, returns credit, cancellations reverse). Lock the partner row before a credit-limit check.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,
