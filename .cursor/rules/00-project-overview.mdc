@@ -1,0 +1,47 @@
+---
+description: EnterprisePulse API project overview, architecture and non-negotiable conventions
+alwaysApply: true
+---
+
+# EnterprisePulse API
+
+Backend of the EnterprisePulse ERP: a **NestJS 11 modular monolith** on **PostgreSQL 17 + Prisma 6**,
+with Redis (cache, BullMQ queues), Socket.IO (realtime notifications), S3-compatible storage (RustFS) and SMTP (Mailpit in dev).
+The web client lives in a separate repository (`enterprise-pulse-web`) and consumes this API only through the OpenAPI document.
+
+## Layout
+
+```
+src/
+  config/           typed env (zod) + AppConfigService
+  common/           cross-cutting: request context, guards, decorators, filters, pagination, CASL ability
+  infrastructure/   prisma, redis, queue, storage, mail (technical adapters, no business rules)
+  modules/<name>/   one folder per business module: controller, service, dto/, events, listeners
+prisma/schema/*.prisma   multi-file schema, one file per domain
+prisma/migrations/       committed migrations, never edited after merge
+```
+
+## Rules that always apply
+
+- Code, identifiers, comments and commit messages are **English**. User-facing strings shown in the UI are translated by the web app; API error messages stay English.
+- Every endpoint is under `/api/v1`, documented in Swagger (`/docs`) and protected by default.
+  Use `@Public()` only for genuinely anonymous endpoints and `@RequirePermissions('module:action')` for everything else.
+- Multi-tenancy: business data is scoped by `companyId` (and optionally `branchId`) taken from `RequestContext` / `CurrentUser`, **never** from the request body.
+- Modules talk to each other through exported services or domain events (`EventEmitter2`, e.g. `workflow.approved`), never by importing another module's Prisma models directly into controllers.
+- Long or retryable work (mail, exports, integrations) goes to a BullMQ queue, not inside the request.
+- Money and quantities use Prisma `Decimal`; never JS floats for persisted amounts.
+- Document numbers come from `NumberingService.next(companyId, code, tx)` inside the same transaction that creates the document.
+
+## Commands
+
+| Task | Command |
+| --- | --- |
+| Dev server | `pnpm start:dev` |
+| Type check / lint | `pnpm typecheck`, `pnpm lint` |
+| Unit / e2e tests | `pnpm test`, `pnpm test:e2e` |
+| New migration | `pnpm db:migrate --name <change>` |
+| Seed demo data | `pnpm db:seed` |
+
+Infrastructure (Postgres, Redis, RustFS, Mailpit) runs from `docker compose up -d` in the workspace root.
+
+After changing DTOs or controllers, regenerate the client in the web repo with `pnpm api:generate`.

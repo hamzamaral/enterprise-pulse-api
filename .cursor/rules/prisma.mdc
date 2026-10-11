@@ -1,0 +1,28 @@
+---
+description: Prisma schema, migration and data-access conventions
+globs: prisma/**/*,src/**/*.service.ts,src/infrastructure/prisma/**
+alwaysApply: false
+---
+
+# Prisma
+
+- The schema is split by domain in `prisma/schema/*.prisma` (`base`, `organization`, `identity`, `platform`, `settings`, `workflow`, …). Add a new file per business module (`assets.prisma`, `hr.prisma`).
+- Model names are singular PascalCase; tables are mapped to snake_case plurals with `@@map("asset_assignments")`, columns with `@map("company_id")`.
+- Every tenant-owned model has `companyId String @map("company_id") @db.Uuid` with a relation to `Company` and an index starting with `companyId`.
+- IDs are `String @id @default(uuid()) @db.Uuid`. Timestamps: `createdAt`, `updatedAt @updatedAt`; soft delete with `deletedAt DateTime?` only where the domain needs it.
+- Money: `Decimal @db.Decimal(18, 2)`; rates/quantities: `@db.Decimal(18, 6)` or as the domain requires.
+- Business-unique fields are unique **per company**: `@@unique([companyId, code])`.
+
+## Migrations
+
+- Create with `pnpm db:migrate --name <snake_case_change>`; commit the generated SQL.
+- Never edit a migration that is already on `main`; add a new one instead.
+- Data backfills that cannot be expressed in SQL go into a one-off script, not into the migration.
+
+## Data access
+
+- Inject `PrismaService`; it is the extended client with the audit extension, so creates/updates/deletes are written to `AuditLog` automatically.
+- Select only the fields you need for lists (`select`), and use `include` sparingly.
+- Pagination helpers live in `src/common/pagination` (`toPageArgs`, `toOrderBy`, `paginated`). Whitelist sortable columns.
+- Raw SQL only through `$queryRaw` tagged templates (parameterised). Row locks for counters use `SELECT … FOR UPDATE` inside a transaction (see `NumberingService`).
+- Seed data lives in `prisma/seed.ts` and must stay idempotent (`upsert`).

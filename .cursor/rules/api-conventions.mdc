@@ -1,0 +1,40 @@
+---
+description: REST, error, pagination and OpenAPI conventions for the EnterprisePulse API
+globs: src/**/*.controller.ts,src/**/dto/**,src/common/**
+alwaysApply: false
+---
+
+# REST and OpenAPI conventions
+
+## Routes
+
+- Plural nouns, kebab-case: `/api/v1/asset-assignments`, `/api/v1/workflow/instances/:id/approve`.
+- `GET /x` list (paginated), `GET /x/:id`, `POST /x`, `PATCH /x/:id` (partial), `DELETE /x/:id`.
+- State transitions are explicit sub-resources with `POST`: `/:id/approve`, `/:id/return`, `/:id/cancel`.
+- Tenant selection comes from headers `x-company-id` / `x-branch-id`, resolved by `AuthContextService`.
+
+## Pagination, filtering, sorting
+
+- Query: `page` (1-based), `pageSize` (max 100), `search`, `sortBy`, `sortOrder` (`asc|desc`), plus typed filters.
+- Response: `{ data: T[], meta: { page, pageSize, total, totalPages } }`.
+
+## Errors
+
+All errors pass through `AllExceptionsFilter` and have this shape:
+
+```json
+{ "statusCode": 409, "error": "CONFLICT", "message": "Code already exists", "path": "/api/v1/...", "timestamp": "...", "requestId": "..." }
+```
+
+- 400 validation (with `details`), 401 unauthenticated, 403 missing permission, 404 not found **within the tenant**, 409 conflicts / optimistic lock, 429 throttled.
+- Never leak stack traces, SQL or other tenants' existence.
+
+## OpenAPI
+
+- The Swagger CLI plugin infers properties; `operationId` is `<controllerTag><MethodName>` in camelCase (`usersFindAll`) – keep controller method names stable, they become hook names in the web app (`useUsersFindAll`).
+- Use `@ApiOkResponse({ type: Dto })` / `@ApiCreatedResponse` when the return type cannot be inferred.
+- Outside production, `main.ts` writes `openapi.json`; the web repo generates its client from `/docs-json`.
+
+## Versioning
+
+- Breaking changes go to `version: '2'` controllers; v1 stays until the web app migrates.

@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.git
+.husky
+.cursor
+.env
+.env.*
+!.env.example
+*.log
+openapi.json
+*.tsbuildinfo
+test

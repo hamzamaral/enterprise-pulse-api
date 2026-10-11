@@ -1,0 +1,11 @@
+// Multi-file Prisma schema. Each business module owns one *.prisma file in this folder.
+// Conventions: UUID primary keys, snake_case table names via @@map, soft delete via deletedAt.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}

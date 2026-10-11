@@ -1,0 +1,36 @@
+---
+description: Authentication, authorization, tenancy and secret-handling rules
+globs: src/**/*.ts
+alwaysApply: false
+---
+
+# Security
+
+## Authentication
+
+- Access token: JWT, 15 minutes, sent as `Authorization: Bearer`.
+- Refresh token: random value in the httpOnly `ep_refresh` cookie (path `/api/v1/auth`), stored **hashed** (SHA-256), rotated on every use and grouped in a family; reuse of a revoked token revokes the whole family.
+- Passwords: argon2id. Lock the account for 15 minutes after 5 failed attempts. Optional TOTP 2FA.
+- Password reset tokens are single-use, hashed and expire after 1 hour. Responses never reveal whether an e-mail exists.
+
+## Authorization
+
+- Permission codes are `module:action` and must exist in `PERMISSION_REGISTRY`.
+- `PermissionsGuard` checks `@RequirePermissions` via the CASL ability built from the user's roles in the **active company**. Super admins get `manage all`.
+- Object-level rules (e.g. "only the requester can cancel", "only the current step's approver can approve") are enforced in services, not in the UI.
+
+## Tenancy
+
+- Every query on tenant data includes `companyId` from the auth context. A record of another company must produce **404**, not 403.
+- Do not accept `companyId` / `userId` of the actor from request bodies.
+
+## Input, files and output
+
+- Global `ValidationPipe` with `whitelist` and `forbidNonWhitelisted`; DTOs for every body and query.
+- Uploads: size limit, MIME allow-list, random object keys; downloads only through short-lived presigned URLs after a permission check.
+- Never log secrets, tokens, passwords or full personal data; pino redacts `authorization` and `cookie` headers.
+
+## Secrets
+
+- Configuration only via env vars validated in `src/config/env.ts`. `.env` is git-ignored; document new variables in `.env.example`.
+- MCP / tooling tokens are read from the environment (`${env:...}`), never committed.

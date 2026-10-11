@@ -1,0 +1,42 @@
+---
+description: How to structure a NestJS business module (controller, service, DTOs, events) in EnterprisePulse
+globs: src/modules/**/*.ts
+alwaysApply: false
+---
+
+# Business modules
+
+A new module (for example `assets` for zimmet / asset assignment) follows the same shape as `workflow` or `settings`:
+
+```
+src/modules/assets/
+  assets.module.ts
+  assets.controller.ts      HTTP only: routing, guards, Swagger, mapping to DTOs
+  assets.service.ts         business rules + Prisma access, scoped by companyId
+  assets.events.ts          event names + payload types (if the module emits events)
+  assets.listener.ts        @OnEvent handlers for other modules' events (if any)
+  dto/assets.dto.ts         request/response classes with class-validator decorators
+```
+
+## Controllers
+
+- Thin: validate input via DTOs, read the tenant from `@CurrentUser()`, call one service method, return a response DTO.
+- Decorate with `@ApiTags('<module>')` and `@Controller({ path: '<plural>', version: '1' })`.
+- Every handler has `@RequirePermissions('<module>:<action>')` unless it is self-service (e.g. "my notifications").
+- Register new permission codes in `src/modules/roles/permissions.registry.ts`; the seed and the permission matrix pick them up automatically.
+- Lists use `PaginationQueryDto` (or a subclass with filters) and return `PaginatedResponseDto(ItemDto)`.
+
+## Services
+
+- Always filter by `companyId` from the authenticated user; when a branch is selected, filter by `branchId` where the entity is branch-scoped.
+- Throw Nest HTTP exceptions (`NotFoundException`, `ConflictException`, `BadRequestException`) with short English messages.
+- Use `prisma.$transaction(async (tx) => ...)` whenever more than one write must succeed together; pass `tx` to `NumberingService.next`.
+- Status changes that other modules care about emit an event after the transaction commits:
+  `this.events.emit(ASSET_EVENTS.assigned, payload)`.
+- Use optimistic concurrency (`version` column + `updateMany({ where: { id, version } })`) for records that several users approve or edit concurrently.
+
+## DTOs
+
+- Request DTOs: `class-validator` decorators, `@ApiProperty` comes from the Swagger CLI plugin, so only add it for enums, examples or descriptions.
+- Response DTOs are explicit classes; never return raw Prisma entities that contain secrets (`passwordHash`, `twoFactorSecret`).
+- Enum fields use `@ApiProperty({ enum: X, enumName: 'X' })` so Orval generates a named type.

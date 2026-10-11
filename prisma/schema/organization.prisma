@@ -1,0 +1,54 @@
+model Company {
+  id           String    @id @default(uuid()) @db.Uuid
+  code         String    @unique
+  name         String
+  legalName    String?
+  taxNumber    String?
+  taxOffice    String?
+  email        String?
+  phone        String?
+  address      String?
+  city         String?
+  country      String    @default("TR")
+  baseCurrency String    @default("TRY")
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  branches            Branch[]
+  memberships         UserCompany[]
+  roles               Role[]
+  userRoles           UserRole[]
+  files               FileObject[]
+  numberSequences     NumberSequence[]
+  taxRates            TaxRate[]
+  units               Unit[]
+  settings            Setting[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowInstances   WorkflowInstance[]
+
+  @@map("companies")
+}
+
+model Branch {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @db.Uuid
+  code      String
+  name      String
+  email     String?
+  phone     String?
+  address   String?
+  city      String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company     Company       @relation(fields: [companyId], references: [id])
+  memberships UserCompany[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("branches")
+}

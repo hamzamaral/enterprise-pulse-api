@@ -1,0 +1,91 @@
+enum WorkflowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum ApproverType {
+  ROLE
+  USER
+}
+
+enum WorkflowActionType {
+  START
+  APPROVE
+  REJECT
+  CANCEL
+}
+
+/// Reusable approval chain for a document type (purchase request, leave request, expense...).
+model WorkflowDefinition {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  code        String
+  name        String
+  entityType  String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company            @relation(fields: [companyId], references: [id])
+  steps     WorkflowStep[]
+  instances WorkflowInstance[]
+
+  @@unique([companyId, code])
+  @@map("workflow_definitions")
+}
+
+model WorkflowStep {
+  id             String       @id @default(uuid()) @db.Uuid
+  definitionId   String       @db.Uuid
+  order          Int
+  name           String
+  approverType   ApproverType
+  approverRoleId String?      @db.Uuid
+  approverUserId String?      @db.Uuid
+
+  definition   WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  approverRole Role?              @relation(fields: [approverRoleId], references: [id])
+
+  @@unique([definitionId, order])
+  @@map("workflow_steps")
+}
+
+model WorkflowInstance {
+  id               String         @id @default(uuid()) @db.Uuid
+  companyId        String         @db.Uuid
+  definitionId     String         @db.Uuid
+  entityType       String
+  entityId         String
+  title            String
+  status           WorkflowStatus @default(PENDING)
+  currentStepOrder Int
+  startedById      String         @db.Uuid
+  startedAt        DateTime       @default(now())
+  completedAt      DateTime?
+
+  company    Company            @relation(fields: [companyId], references: [id])
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id])
+  actions    WorkflowAction[]
+
+  @@index([companyId, status])
+  @@index([entityType, entityId])
+  @@map("workflow_instances")
+}
+
+model WorkflowAction {
+  id         String             @id @default(uuid()) @db.Uuid
+  instanceId String             @db.Uuid
+  stepOrder  Int
+  type       WorkflowActionType
+  userId     String             @db.Uuid
+  comment    String?
+  createdAt  DateTime           @default(now())
+
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId])
+  @@map("workflow_actions")
+}

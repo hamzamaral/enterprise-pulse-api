@@ -1,0 +1,78 @@
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String?  @db.Uuid
+  userId     String?  @db.Uuid
+  userEmail  String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValues  Json?
+  newValues  Json?
+  ip         String?
+  userAgent  String?
+  requestId  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([companyId, createdAt])
+  @@index([userId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String?   @db.Uuid
+  userId    String    @db.Uuid
+  type      String
+  title     String
+  body      String
+  link      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+model FileObject {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @db.Uuid
+  storageKey   String    @unique
+  originalName String
+  mimeType     String
+  size         Int
+  entityType   String?
+  entityId     String?
+  uploadedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, entityType, entityId])
+  @@map("files")
+}
+
+/// Document number series, e.g. ZMT-2026-000001
+model NumberSequence {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  code        String
+  name        String
+  prefix      String
+  padding     Int      @default(6)
+  includeYear Boolean  @default(true)
+  resetYearly Boolean  @default(true)
+  currentYear Int
+  nextValue   Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, code])
+  @@map("number_sequences")
+}

@@ -1,0 +1,28 @@
+---
+description: Unit and e2e testing conventions for the API (Jest + Supertest)
+globs: src/**/*.spec.ts,test/**/*.ts
+alwaysApply: false
+---
+
+# Testing
+
+## Unit tests (`pnpm test`)
+
+- File next to the code: `numbering/number-format.spec.ts`.
+- Test pure logic and services with mocked collaborators (`{ provide: PrismaService, useValue: mock }`).
+- Name tests by behaviour: `it('rejects approval when the user is not the current approver')`.
+- Every bug fix comes with a test that fails without the fix.
+
+## E2E tests (`pnpm test:e2e`)
+
+- Live in `test/*.e2e-spec.ts`, boot the real `AppModule` with `configureApp(app)` and hit it with Supertest.
+- Require the docker compose services and a migrated + seeded database (CI does this with service containers).
+- Log in with the seeded demo users (`admin@enterprisepulse.dev` / `Admin123!`), never create random global state that other tests depend on.
+- Cover per endpoint: happy path, 401 without token, 403 without permission, 404 for another company's record, validation 400.
+
+## What must be tested for a new business module
+
+1. Permission enforcement on each route.
+2. Tenant isolation.
+3. State machine transitions (allowed and forbidden).
+4. Numbering and money calculations.
