@@ -28,6 +28,11 @@ describe('Fixed assets (e2e)', () => {
         .post(`/api/v1${url}`)
         .set('Authorization', `Bearer ${tokens[role]}`)
         .send(body),
+    patch: (url: string, body: object = {}) =>
+      request(app.getHttpServer())
+        .patch(`/api/v1${url}`)
+        .set('Authorization', `Bearer ${tokens[role]}`)
+        .send(body),
   });
 
   const login = async (credentials: { email: string; password: string }) => {
@@ -211,5 +216,56 @@ describe('Fixed assets (e2e)', () => {
       .expect(200);
     detail = await api('admin').get(`/assets/${asset.id}`).expect(200);
     expect(detail.body.status).toBe('IN_STOCK');
+  });
+
+  it('counts assets by QR label, tag and serial number', async () => {
+    const category = await api('admin')
+      .post('/asset-categories', {
+        code: `E2E${Date.now().toString(36).toUpperCase()}`,
+        name: 'e2e count',
+        usefulLifeMonths: 36,
+      })
+      .expect(201);
+    const categoryId = (category.body as { id: string }).id;
+    const first = await createAsset({ categoryId });
+    const second = await createAsset({ categoryId, serialNumber: `E2E-SN-${Date.now()}` });
+    const outsider = await createAsset();
+
+    await api('manager').post('/asset-counts', { countDate: today(), categoryId }).expect(403);
+    const created = await api('admin')
+      .post('/asset-counts', { countDate: today(), categoryId })
+      .expect(201);
+    const count = created.body as { id: string; number: string; expectedCount: number };
+    expect(count.number).toMatch(/^DSY-\d{4}-\d{6}$/);
+    expect(count.expectedCount).toBe(2);
+    await api('admin').post('/asset-counts', { countDate: today(), categoryId }).expect(409);
+
+    const scan = (code: string, status = 200) =>
+      api('admin').post(`/asset-counts/${count.id}/scan`, { code }).expect(status);
+    expect((await scan(first.assetTag.toLowerCase())).body.result).toBe('FOUND');
+    expect((await scan(`http://localhost:5173/assets/${second.id}`)).body.result).toBe('FOUND');
+    expect((await scan(first.assetTag)).body.result).toBe('ALREADY_FOUND');
+    const unexpected = await scan(outsider.assetTag);
+    expect(unexpected.body.result).toBe('UNEXPECTED');
+    await scan('DMB-0000-999999', 404);
+
+    const firstLine = (await scan(first.assetTag)).body.line as { id: string };
+    await api('admin')
+      .patch(`/asset-counts/${count.id}/lines/${firstLine.id}`, { condition: 'DAMAGED' })
+      .expect(200);
+
+    const done = await api('admin')
+      .post(`/asset-counts/${count.id}/complete`, { applyConditions: true })
+      .expect(200);
+    expect(done.body).toMatchObject({
+      status: 'COMPLETED',
+      expectedCount: 2,
+      foundCount: 2,
+      missingCount: 0,
+      unexpectedCount: 1,
+    });
+    const asset = await api('admin').get(`/assets/${first.id}`).expect(200);
+    expect(asset.body.condition).toBe('DAMAGED');
+    await scan(first.assetTag, 409);
   });
 });

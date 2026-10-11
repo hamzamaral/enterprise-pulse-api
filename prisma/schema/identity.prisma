@@ -28,6 +28,8 @@ model User {
   assignmentsReturned AssetAssignment[]    @relation("AssignmentReturnedBy")
   stockMovements      StockMovement[]      @relation("StockMovementCreatedBy")
   stockCounts         StockCount[]         @relation("StockCountCreatedBy")
+  assetCounts         AssetCount[]         @relation("AssetCountCreatedBy")
+  assetCountScans     AssetCountLine[]     @relation("AssetCountLineFoundBy")
 
   @@map("users")
 }

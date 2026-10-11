@@ -2,6 +2,7 @@
 import {
   ApproverType,
   AssetCondition,
+  AssetCountStatus,
   AssetStatus,
   AssigneeType,
   AssignmentStatus,
@@ -171,6 +172,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['INVOICE', 'Fatura', 'FTR'],
     ['ASSET', 'Demirbaş', 'DMB'],
     ['ASSET_ASSIGNMENT', 'Zimmet Tutanağı', 'ZMT'],
+    ['ASSET_COUNT', 'Demirbaş Sayımı', 'DSY'],
     ['STOCK_MOVEMENT', 'Stok Hareketi', 'STH'],
     ['STOCK_COUNT', 'Stok Sayımı', 'SAY'],
     ['LEAVE_REQUEST', 'İzin Talebi', 'IZN'],
@@ -1010,6 +1012,85 @@ async function seedAssets(companyId: string, adminId: string) {
   });
 }
 
+/** A completed company-wide asset count (one asset missing) and an open count in progress. */
+async function seedAssetCounts(companyId: string, adminId: string) {
+  if (await prisma.assetCount.count({ where: { companyId } })) return;
+  const assets = await prisma.asset.findMany({
+    where: {
+      companyId,
+      deletedAt: null,
+      status: { notIn: [AssetStatus.RETIRED, AssetStatus.LOST] },
+    },
+    include: {
+      location: { select: { name: true } },
+      assignments: {
+        where: { status: AssignmentStatus.ACTIVE },
+        include: {
+          employee: { select: { firstName: true, lastName: true } },
+          department: { select: { name: true } },
+          location: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: { assetTag: 'asc' },
+  });
+  if (!assets.length) return;
+  const holder = (asset: (typeof assets)[number]) => {
+    const a = asset.assignments[0];
+    if (!a) return asset.location?.name ?? null;
+    if (a.employee) return `${a.employee.firstName} ${a.employee.lastName}`;
+    return a.department?.name ?? a.location?.name ?? null;
+  };
+  const number = (n: number) =>
+    formatNumber({ prefix: 'DSY', padding: 6, includeYear: true }, YEAR, n);
+
+  const completedAt = new Date(`${YEAR}-06-30T16:00:00Z`);
+  await prisma.assetCount.create({
+    data: {
+      companyId,
+      number: number(1),
+      status: AssetCountStatus.COMPLETED,
+      countDate: parseDateOnly(`${YEAR}-06-30`),
+      notes: 'Yıl ortası demirbaş sayımı',
+      createdById: adminId,
+      completedAt,
+      lines: {
+        create: assets.map((asset, index) => ({
+          assetId: asset.id,
+          expectedHolder: holder(asset),
+          foundAt: index === assets.length - 1 ? null : completedAt,
+          foundById: index === assets.length - 1 ? null : adminId,
+          note: index === assets.length - 1 ? 'Konumunda bulunamadı, sorumluya soruldu' : null,
+        })),
+      },
+    },
+  });
+
+  const open = assets.filter((asset) => asset.categoryId === assets[0].categoryId);
+  await prisma.assetCount.create({
+    data: {
+      companyId,
+      number: number(2),
+      countDate: parseDateOnly(`${YEAR}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`),
+      categoryId: assets[0].categoryId,
+      notes: 'Bilgisayar envanteri kontrolü',
+      createdById: adminId,
+      lines: {
+        create: open.map((asset, index) => ({
+          assetId: asset.id,
+          expectedHolder: holder(asset),
+          foundAt: index < open.length / 2 ? new Date() : null,
+          foundById: index < open.length / 2 ? adminId : null,
+        })),
+      },
+    },
+  });
+  await prisma.numberSequence.updateMany({
+    where: { companyId, code: 'ASSET_COUNT', nextValue: { lte: 2 } },
+    data: { nextValue: 3, currentYear: YEAR },
+  });
+}
+
 async function main() {
   console.log('Seeding permissions and currencies...');
   await seedPermissions();
@@ -1087,6 +1168,7 @@ async function main() {
 
   console.log('Seeding assets...');
   await seedAssets(pulse.id, admin.id);
+  await seedAssetCounts(pulse.id, admin.id);
 
   console.log('Seeding inventory...');
   await seedInventory(prisma, pulse.id, admin.id);

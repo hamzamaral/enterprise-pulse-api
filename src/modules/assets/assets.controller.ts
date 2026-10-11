@@ -16,6 +16,7 @@ import type { AuthUser } from '../../common/auth/auth-user';
 import { CurrentUser, RequirePermissions } from '../../common/decorators';
 import { PaginatedResponseDto } from '../../common/pagination/pagination.dto';
 import { AssetAssignmentsService } from './asset-assignments.service';
+import { AssetCountsService } from './asset-counts.service';
 import { AssetSettingsService } from './asset-settings.service';
 import { AssetsService } from './assets.service';
 import {
@@ -40,6 +41,17 @@ import {
   UpdateAssetDto,
   UpdateAssetLocationDto,
 } from './dto/asset.dto';
+import {
+  AssetCountDetailDto,
+  AssetCountDto,
+  AssetCountLineDto,
+  AssetCountQueryDto,
+  AssetScanResultDto,
+  CompleteAssetCountDto,
+  CreateAssetCountDto,
+  ScanAssetDto,
+  UpdateAssetCountLineDto,
+} from './dto/asset-count.dto';
 
 @ApiTags('Assets')
 @ApiBearerAuth()
@@ -233,6 +245,89 @@ export class AssetsController {
     @Body() dto: CompleteMaintenanceDto,
   ) {
     return this.assets.completeMaintenance(companyId, id, maintenanceId, dto);
+  }
+}
+
+@ApiTags('Assets')
+@ApiBearerAuth()
+@Controller({ path: 'asset-counts', version: '1' })
+export class AssetCountsController {
+  constructor(private readonly counts: AssetCountsService) {}
+
+  @Get()
+  @RequirePermissions('assets:read')
+  @ApiOkResponse({ type: PaginatedResponseDto(AssetCountDto) })
+  findAll(@CurrentUser('companyId') companyId: string, @Query() query: AssetCountQueryDto) {
+    return this.counts.findAll(companyId, query);
+  }
+
+  @Get(':id')
+  @RequirePermissions('assets:read')
+  @ApiOkResponse({ type: AssetCountDetailDto })
+  findOne(@CurrentUser('companyId') companyId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.counts.findOne(companyId, id);
+  }
+
+  @Post()
+  @RequirePermissions('assets:count')
+  @ApiOkResponse({ type: AssetCountDetailDto })
+  create(@CurrentUser() user: AuthUser, @Body() dto: CreateAssetCountDto) {
+    return this.counts.create(user, dto);
+  }
+
+  @Post(':id/scan')
+  @RequirePermissions('assets:count')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: AssetScanResultDto })
+  scan(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ScanAssetDto,
+  ) {
+    return this.counts.scan(user, id, dto);
+  }
+
+  @Patch(':id/lines/:lineId')
+  @RequirePermissions('assets:count')
+  @ApiOkResponse({ type: AssetCountLineDto })
+  updateLine(
+    @CurrentUser() user: AuthUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lineId', ParseUUIDPipe) lineId: string,
+    @Body() dto: UpdateAssetCountLineDto,
+  ) {
+    return this.counts.updateLine(user, id, lineId, dto);
+  }
+
+  @Delete(':id/lines/:lineId')
+  @RequirePermissions('assets:count')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  removeLine(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('lineId', ParseUUIDPipe) lineId: string,
+  ) {
+    return this.counts.removeLine(companyId, id, lineId);
+  }
+
+  @Post(':id/complete')
+  @RequirePermissions('assets:count')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: AssetCountDetailDto })
+  complete(
+    @CurrentUser('companyId') companyId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CompleteAssetCountDto,
+  ) {
+    return this.counts.complete(companyId, id, dto);
+  }
+
+  @Post(':id/cancel')
+  @RequirePermissions('assets:count')
+  @HttpCode(HttpStatus.OK)
+  @ApiOkResponse({ type: AssetCountDetailDto })
+  cancel(@CurrentUser('companyId') companyId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.counts.cancel(companyId, id);
   }
 }
 

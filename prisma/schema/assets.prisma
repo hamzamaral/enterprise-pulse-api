@@ -35,6 +35,12 @@ enum MaintenanceStatus {
   COMPLETED
 }
 
+enum AssetCountStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
 model AssetCategory {
   id               String   @id @default(uuid()) @db.Uuid
   companyId        String   @db.Uuid
@@ -46,8 +52,9 @@ model AssetCategory {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id])
+  company Company      @relation(fields: [companyId], references: [id])
   assets  Asset[]
+  counts  AssetCount[]
 
   @@unique([companyId, code])
   @@map("asset_categories")
@@ -69,6 +76,7 @@ model AssetLocation {
   branch      Branch?           @relation(fields: [branchId], references: [id])
   assets      Asset[]
   assignments AssetAssignment[]
+  counts      AssetCount[]
 
   @@unique([companyId, code])
   @@map("asset_locations")
@@ -108,6 +116,7 @@ model Asset {
   location     AssetLocation?     @relation(fields: [locationId], references: [id])
   assignments  AssetAssignment[]
   maintenances AssetMaintenance[]
+  countLines   AssetCountLine[]
 
   @@unique([companyId, assetTag])
   @@unique([companyId, serialNumber])
@@ -176,4 +185,54 @@ model AssetMaintenance {
 
   @@index([assetId, status])
   @@map("asset_maintenances")
+}
+
+/// Physical asset verification (demirbaş sayımı): every in-service asset in scope is scanned by its QR label.
+model AssetCount {
+  id          String           @id @default(uuid()) @db.Uuid
+  companyId   String           @db.Uuid
+  number      String
+  status      AssetCountStatus @default(DRAFT)
+  countDate   DateTime         @db.Date
+  /// Optional scope: assets stored at or assigned to this location.
+  locationId  String?          @db.Uuid
+  /// Optional scope: one asset category.
+  categoryId  String?          @db.Uuid
+  notes       String?
+  createdById String           @db.Uuid
+  completedAt DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company   Company          @relation(fields: [companyId], references: [id])
+  location  AssetLocation?   @relation(fields: [locationId], references: [id])
+  category  AssetCategory?   @relation(fields: [categoryId], references: [id])
+  createdBy User             @relation("AssetCountCreatedBy", fields: [createdById], references: [id])
+  lines     AssetCountLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("asset_counts")
+}
+
+model AssetCountLine {
+  id             String          @id @default(uuid()) @db.Uuid
+  countId        String          @db.Uuid
+  assetId        String          @db.Uuid
+  /// False when the asset was scanned but is outside the count's scope.
+  expected       Boolean         @default(true)
+  /// Holder or storage place when the count started, for the variance report.
+  expectedHolder String?
+  foundAt        DateTime?
+  foundById      String?         @db.Uuid
+  /// Condition observed during the count; applied to the asset on completion.
+  condition      AssetCondition?
+  note           String?
+
+  count   AssetCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+  asset   Asset      @relation(fields: [assetId], references: [id])
+  foundBy User?      @relation("AssetCountLineFoundBy", fields: [foundById], references: [id])
+
+  @@unique([countId, assetId])
+  @@map("asset_count_lines")
 }

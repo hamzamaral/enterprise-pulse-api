@@ -19,8 +19,11 @@ export const PERMISSION_REGISTRY = {
   employees: ['read', 'create', 'update', 'delete'],
   /** read = all requests, create = on behalf of others, update = types, balances, holidays. */
   leave: ['read', 'create', 'update'],
-  /** update also covers categories, locations and maintenance; assign = hand over, return, transfer. */
-  assets: ['read', 'create', 'update', 'delete', 'assign'],
+  /**
+   * update also covers categories, locations and maintenance; assign = hand over, return, transfer;
+   * count = run asset counts (scan, complete).
+   */
+  assets: ['read', 'create', 'update', 'delete', 'assign', 'count'],
   /** create/update/delete = products, variants, categories, warehouses; move = post stock movements. */
   inventory: ['read', 'create', 'update', 'delete', 'move', 'count'],
 } as const satisfies Record<string, readonly string[]>;

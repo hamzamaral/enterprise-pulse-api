@@ -39,6 +39,7 @@ model Company {
   assets              Asset[]
   assetAssignments    AssetAssignment[]
   assetMaintenances   AssetMaintenance[]
+  assetCounts         AssetCount[]
   productCategories   ProductCategory[]
   products            Product[]
   productVariants     ProductVariant[]
