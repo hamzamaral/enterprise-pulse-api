@@ -220,7 +220,7 @@ export class SalesReturnsService {
             data: { returnedQty: { increment: quantity } },
           });
         }
-        if (priced.grandTotal.isPositive()) {
+        if (priced.grandTotal.greaterThan(0)) {
           await this.ledger.post(tx, user, {
             partnerId: invoice.partnerId,
             entryDate: returnDate,
@@ -237,7 +237,7 @@ export class SalesReturnsService {
             priced.grandTotal,
             Prisma.Decimal.max(invoice.grandTotal.minus(invoice.paidAmount), 0),
           );
-          if (settle.isPositive()) {
+          if (settle.greaterThan(0)) {
             const paid = invoice.paidAmount.plus(settle);
             await tx.salesInvoice.update({
               where: { id: invoice.id },

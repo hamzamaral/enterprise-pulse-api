@@ -218,7 +218,7 @@ export class PurchaseInvoicesService {
           data: { invoicedQty: { increment: quantity } },
         });
       }
-      if (priced.grandTotal.isPositive()) {
+      if (priced.grandTotal.greaterThan(0)) {
         await this.ledger.post(tx, user, {
           partnerId: partner.id,
           entryDate: invoiceDate,
