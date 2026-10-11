@@ -19,6 +19,8 @@ export const PERMISSION_REGISTRY = {
   employees: ['read', 'create', 'update', 'delete'],
   /** read = all requests, create = on behalf of others, update = types, balances, holidays. */
   leave: ['read', 'create', 'update'],
+  /** read = timesheets and shift plans; update = correct records, define and plan shifts. */
+  attendance: ['read', 'update'],
   /**
    * update also covers categories, locations and maintenance; assign = hand over, return, transfer;
    * count = run asset counts (scan, complete).

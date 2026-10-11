@@ -18,6 +18,7 @@ import { parseDateOnly } from '../src/common/dates/date-only';
 import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
+import { seedAttendance } from './seed-attendance';
 import { seedInventory } from './seed-inventory';
 
 const prisma = new PrismaClient();
@@ -48,6 +49,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'positions:read',
       'employees:read',
       'leave:read',
+      'attendance:read',
       'assets:read',
       'inventory:read',
     ],
@@ -1165,6 +1167,7 @@ async function main() {
 
   console.log('Seeding human resources...');
   await seedHr(pulse.id, hq.id, usersByName, pulseRoles);
+  await seedAttendance(prisma, pulse.id);
 
   console.log('Seeding assets...');
   await seedAssets(pulse.id, admin.id);

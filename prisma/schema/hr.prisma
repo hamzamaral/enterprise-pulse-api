@@ -97,17 +97,19 @@ model Employee {
   updatedAt             DateTime       @updatedAt
   deletedAt             DateTime?
 
-  company            Company           @relation(fields: [companyId], references: [id])
-  branch             Branch?           @relation(fields: [branchId], references: [id])
-  user               User?             @relation(fields: [userId], references: [id])
-  department         Department?       @relation("EmployeeDepartment", fields: [departmentId], references: [id])
-  position           Position?         @relation(fields: [positionId], references: [id])
-  manager            Employee?         @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports            Employee[]        @relation("EmployeeManager")
-  managedDepartments Department[]      @relation("DepartmentManager")
+  company            Company            @relation(fields: [companyId], references: [id])
+  branch             Branch?            @relation(fields: [branchId], references: [id])
+  user               User?              @relation(fields: [userId], references: [id])
+  department         Department?        @relation("EmployeeDepartment", fields: [departmentId], references: [id])
+  position           Position?          @relation(fields: [positionId], references: [id])
+  manager            Employee?          @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports            Employee[]         @relation("EmployeeManager")
+  managedDepartments Department[]       @relation("DepartmentManager")
   leaveBalances      LeaveBalance[]
   leaveRequests      LeaveRequest[]
   assetAssignments   AssetAssignment[]
+  shiftAssignments   ShiftAssignment[]
+  attendance         AttendanceRecord[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

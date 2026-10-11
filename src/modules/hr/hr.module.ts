@@ -1,6 +1,12 @@
 import { Module } from '@nestjs/common';
 import { AssetsModule } from '../assets/assets.module';
 import { WorkflowModule } from '../workflow/workflow.module';
+import {
+  AttendanceController,
+  ShiftPlanController,
+  ShiftsController,
+} from './attendance.controller';
+import { AttendanceService } from './attendance.service';
 import { DepartmentsService } from './departments.service';
 import { EmployeesService } from './employees.service';
 import {
@@ -19,7 +25,7 @@ import {
 } from './organization.controller';
 import { PositionsService } from './positions.service';
 
-/** Human resources: organization structure, personnel records and leave management. */
+/** Human resources: organization structure, personnel records, leave, shifts and attendance. */
 @Module({
   imports: [WorkflowModule, AssetsModule],
   controllers: [
@@ -30,8 +36,12 @@ import { PositionsService } from './positions.service';
     HolidaysController,
     LeaveBalancesController,
     LeaveRequestsController,
+    ShiftsController,
+    ShiftPlanController,
+    AttendanceController,
   ],
   providers: [
+    AttendanceService,
     DepartmentsService,
     PositionsService,
     EmployeesService,

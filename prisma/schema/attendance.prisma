@@ -1,0 +1,72 @@
+enum AttendanceSource {
+  /// Employee clocked in / out from self-service.
+  SELF
+  /// Entered or corrected by HR.
+  MANUAL
+}
+
+/// Shift template (vardiya): planned working hours of one day.
+model Shift {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @db.Uuid
+  code         String
+  name         String
+  /// Local time "HH:mm"; an end before the start means the shift ends the next day.
+  startTime    String
+  endTime      String
+  breakMinutes Int      @default(60)
+  color        String   @default("#6366f1")
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company     Company           @relation(fields: [companyId], references: [id])
+  assignments ShiftAssignment[]
+
+  @@unique([companyId, code])
+  @@map("shifts")
+}
+
+/// Shift plan entry. Without an entry the default schedule applies (weekdays, 09:00-18:00).
+model ShiftAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  companyId  String   @db.Uuid
+  employeeId String   @db.Uuid
+  date       DateTime @db.Date
+  /// Null marks a planned day off.
+  shiftId    String?  @db.Uuid
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id])
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  shift    Shift?   @relation(fields: [shiftId], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([companyId, date])
+  @@map("shift_assignments")
+}
+
+/// Puantaj: actual check-in / check-out of an employee for one work date.
+model AttendanceRecord {
+  id          String           @id @default(uuid()) @db.Uuid
+  companyId   String           @db.Uuid
+  employeeId  String           @db.Uuid
+  /// Work date the shift belongs to (a night shift's check-out falls on the next day).
+  date        DateTime         @db.Date
+  checkIn     DateTime?
+  checkOut    DateTime?
+  source      AttendanceSource @default(SELF)
+  note        String?
+  updatedById String?          @db.Uuid
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  updatedBy User?    @relation("AttendanceUpdatedBy", fields: [updatedById], references: [id])
+
+  @@unique([employeeId, date])
+  @@index([companyId, date])
+  @@map("attendance_records")
+}

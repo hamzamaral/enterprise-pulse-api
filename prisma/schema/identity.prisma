@@ -30,6 +30,7 @@ model User {
   stockCounts         StockCount[]         @relation("StockCountCreatedBy")
   assetCounts         AssetCount[]         @relation("AssetCountCreatedBy")
   assetCountScans     AssetCountLine[]     @relation("AssetCountLineFoundBy")
+  attendanceEdits     AttendanceRecord[]   @relation("AttendanceUpdatedBy")
 
   @@map("users")
 }
