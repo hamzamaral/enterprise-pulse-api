@@ -66,6 +66,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
       - run: pnpm db:deploy
       - run: pnpm db:seed
       - run: pnpm test:e2e
