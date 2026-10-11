@@ -16,7 +16,11 @@ alwaysApply: false
 ## E2E tests (`pnpm test:e2e`)
 
 - Live in `test/*.e2e-spec.ts`, boot the real `AppModule` with `configureApp(app)` and hit it with Supertest.
-- Require the docker compose services and a migrated + seeded database (CI does this with service containers).
+- Run against their own database, `<db>_e2e` (`test/e2e-database.ts`, override with `DATABASE_URL_E2E`), so the
+  demo data stays clean. Jest `globalSetup` (`test/global-setup.ts`) creates it if missing, runs `migrate deploy` and the
+  idempotent seed on every run; `E2E_RESET=1 pnpm test:e2e` drops and recreates it.
+- Tests must be repeatable on the same database: use unique codes (`E2E-${Date.now()}`) and reset the state a test
+  depends on at its start (e.g. clear today's attendance record before checking in).
 - Log in with the seeded demo users (`admin@enterprisepulse.dev` / `Admin123!`), never create random global state that other tests depend on.
 - Cover per endpoint: happy path, 401 without token, 403 without permission, 404 for another company's record, validation 400.
 

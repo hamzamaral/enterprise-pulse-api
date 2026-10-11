@@ -67,8 +67,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm db:generate
-      - run: pnpm db:deploy
-      - run: pnpm db:seed
+      # Creates, migrates and seeds enterprise_pulse_e2e (test/global-setup.ts).
       - run: pnpm test:e2e
 
   docker:
