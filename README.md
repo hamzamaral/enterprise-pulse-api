@@ -29,9 +29,9 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Onay akışı motoru**      | Rol veya kullanıcı bazlı çok adımlı onay; belgeler domain event'leriyle güncellenir                                                                                                                                           |
 | **Ayarlar**                | Para birimi, döviz kuru, KDV oranları, birimler, belge numaralandırma serileri (`IZN-2026-000001`)                                                                                                                            |
 | **Dosyalar**               | S3 uyumlu depolama (RustFS), imzalı indirme bağlantıları                                                                                                                                                                      |
-| **İnsan Kaynakları**       | Hiyerarşik departmanlar, pozisyonlar, personel kartı, organizasyon şeması, izin türleri ve kıdeme göre yıllık hak ediş, resmi tatil ve iş günü hesabı, onay akışlı izin talebi                                                |
-| **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme                         |
-| **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, stok sayımı ve otomatik düzeltme, kritik stok bildirimi |
+| **İnsan Kaynakları**       | Hiyerarşik departmanlar, pozisyonlar, personel kartı, organizasyon şeması, izin türleri ve kıdeme göre yıllık hak ediş, resmi tatil ve iş günü hesabı, onay akışlı izin talebi; vardiya tanımları (gece vardiyası dahil) ve haftalık plan, self-servis giriş-çıkış, geç kalma / devamsızlık / fazla mesai hesaplayan aylık puantaj |
+| **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu |
+| **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi |
 
 Sıradaki fazlar: satın alma, satış, cari ve finans, raporlama
 ([yol haritası](https://github.com/hamzamaral/EnterprisePulse/blob/main/docs/roadmap.md)).
@@ -65,6 +65,11 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   boşluksuz numara üretir.
 - **Onay akışı:** Belgeler bir workflow başlatır; son onayda yayınlanan event'i ilgili modül dinler ve durum
   yalnızca `PENDING`'den geçebildiği için tekrar gelen event'ler zararsızdır.
+- **Puantaj hesabı:** Gün sonucu (geldi, geç, devamsız, izinli, resmi tatil) saf ve birim testli bir fonksiyonda
+  (`hr/timesheet.ts`) vardiya planı, giriş-çıkış, onaylı izin ve tatillerden hesaplanır. Saatler şirketin saat
+  diliminde yorumlanır; gece vardiyasının çıkışı ertesi güne düşse de vardiyanın başladığı iş gününe yazılır.
+- **Sayım oturumları:** Stok ve demirbaş sayımları açıldığı anın beklenen durumunu kopyalar, yalnızca taslakken
+  (satır kilidiyle) düzenlenir ve etkisini tamamlandığında bir kez uygular.
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -115,11 +120,15 @@ pnpm start:dev        # http://localhost:3000/api/v1
 
 ## Testler ve CI
 
-- **Birim testleri (Jest):** iş günü ve izin hesabı, amortisman, stok matematiği, numaralandırma gibi saf iş kuralları.
-- **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, zimmet ve stok akışları gerçek veritabanında;
-  yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve kritik stok bildirimi dahil.
+- **Birim testleri (Jest):** iş günü ve izin hesabı, puantaj (geç kalma, fazla mesai, gece vardiyası, saat dilimi),
+  amortisman, stok matematiği, numaralandırma gibi saf iş kuralları.
+- **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları
+  gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
+  kritik stok bildirimi dahil.
+- **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed
+  otomatik uygulanır), demo verisi kirlenmez. `E2E_RESET=1 pnpm test:e2e` test veritabanını sıfırdan kurar.
 - **GitHub Actions:** lint, format, tip kontrolü, kapsamlı birim testleri, build; PostgreSQL ve Redis servisleriyle
-  migration + seed + e2e; Docker imajı derlemesi.
+  e2e; Docker imajı derlemesi.
 - Commit mesajları [Conventional Commits](https://www.conventionalcommits.org) biçimindedir; Husky, commitlint ve
   lint-staged ile denetlenir.
 

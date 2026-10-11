@@ -45,6 +45,11 @@ prisma/migrations/       committed migrations, never edited after merge
   (`SELECT … FOR UPDATE`, sorted ids), decrement with a conditional `updateMany` (no row → "Insufficient stock"),
   and append `StockTransaction` ledger rows ordered by `seq`. Corrections are new movements, never edits.
   Call `notifyLowStock` after the transaction commits.
+- Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
+  (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
+- Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,
+  default `Europe/Istanbul`); a record belongs to the work date of its shift, so a night shift's check-out falls on the
+  next day. Day results come from the pure `hr/timesheet.ts` (`evaluateDay`), which is unit-tested; keep rules there.
 
 ## Commands
 
