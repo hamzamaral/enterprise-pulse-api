@@ -199,6 +199,7 @@ export class AuthService {
         id: c.id,
         code: c.code,
         name: c.name,
+        baseCurrency: c.baseCurrency,
         isDefault: defaultIds.has(c.id),
         branches: c.branches.map((b) => ({ id: b.id, code: b.code, name: b.name })),
       })),

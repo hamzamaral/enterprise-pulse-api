@@ -87,6 +87,8 @@ export class MeCompanyDto {
   id: string;
   code: string;
   name: string;
+  /** Currency of the company's books (ledger and reports). */
+  baseCurrency: string;
   isDefault: boolean;
   branches: MeBranchDto[];
 }
