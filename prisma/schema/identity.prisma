@@ -23,6 +23,7 @@ model User {
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
   notifications       Notification[]
+  employees           Employee[]
 
   @@map("users")
 }

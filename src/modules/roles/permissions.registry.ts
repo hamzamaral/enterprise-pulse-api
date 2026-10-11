@@ -14,6 +14,11 @@ export const PERMISSION_REGISTRY = {
   settings: ['read', 'update'],
   workflow: ['read', 'create', 'update', 'delete', 'start'],
   notifications: ['send'],
+  departments: ['read', 'create', 'update', 'delete'],
+  positions: ['read', 'create', 'update', 'delete'],
+  employees: ['read', 'create', 'update', 'delete'],
+  /** read = all requests, create = on behalf of others, update = types, balances, holidays. */
+  leave: ['read', 'create', 'update'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

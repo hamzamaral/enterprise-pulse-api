@@ -21,6 +21,7 @@ import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
+import { HrModule } from './modules/hr/hr.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -68,6 +69,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     NumberingModule,
     SettingsModule,
     WorkflowModule,
+    HrModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

@@ -27,6 +27,13 @@ model Company {
   settings            Setting[]
   workflowDefinitions WorkflowDefinition[]
   workflowInstances   WorkflowInstance[]
+  departments         Department[]
+  positions           Position[]
+  employees           Employee[]
+  leaveTypes          LeaveType[]
+  leaveBalances       LeaveBalance[]
+  leaveRequests       LeaveRequest[]
+  holidays            Holiday[]
 
   @@map("companies")
 }
@@ -47,6 +54,7 @@ model Branch {
 
   company     Company       @relation(fields: [companyId], references: [id])
   memberships UserCompany[]
+  employees   Employee[]
 
   @@unique([companyId, code])
   @@index([companyId])

@@ -7,8 +7,8 @@ alwaysApply: false
 # Prisma
 
 - The schema is split by domain in `prisma/schema/*.prisma` (`base`, `organization`, `identity`, `platform`, `settings`, `workflow`, …). Add a new file per business module (`assets.prisma`, `hr.prisma`).
-- Model names are singular PascalCase; tables are mapped to snake_case plurals with `@@map("asset_assignments")`, columns with `@map("company_id")`.
-- Every tenant-owned model has `companyId String @map("company_id") @db.Uuid` with a relation to `Company` and an index starting with `companyId`.
+- Model names are singular PascalCase; tables are mapped to snake_case plurals with `@@map("asset_assignments")`. Columns keep their camelCase field names (no `@map`).
+- Every tenant-owned model has `companyId String @db.Uuid` with a relation to `Company` and an index starting with `companyId`.
 - IDs are `String @id @default(uuid()) @db.Uuid`. Timestamps: `createdAt`, `updatedAt @updatedAt`; soft delete with `deletedAt DateTime?` only where the domain needs it.
 - Money: `Decimal @db.Decimal(18, 2)`; rates/quantities: `@db.Decimal(18, 6)` or as the domain requires.
 - Business-unique fields are unique **per company**: `@@unique([companyId, code])`.

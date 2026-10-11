@@ -1,0 +1,199 @@
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  TERMINATED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model Department {
+  id        String    @id @default(uuid()) @db.Uuid
+  companyId String    @db.Uuid
+  code      String
+  name      String
+  parentId  String?   @db.Uuid
+  managerId String?   @db.Uuid
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  company   Company      @relation(fields: [companyId], references: [id])
+  parent    Department?  @relation("DepartmentTree", fields: [parentId], references: [id])
+  children  Department[] @relation("DepartmentTree")
+  manager   Employee?    @relation("DepartmentManager", fields: [managerId], references: [id])
+  employees Employee[]   @relation("EmployeeDepartment")
+  positions Position[]
+
+  @@unique([companyId, code])
+  @@index([companyId, parentId])
+  @@map("departments")
+}
+
+model Position {
+  id           String    @id @default(uuid()) @db.Uuid
+  companyId    String    @db.Uuid
+  departmentId String?   @db.Uuid
+  code         String
+  name         String
+  description  String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  employees  Employee[]
+
+  @@unique([companyId, code])
+  @@map("positions")
+}
+
+/// Personnel record. Optionally linked to a system user for self-service (leave requests, assets).
+model Employee {
+  id                    String         @id @default(uuid()) @db.Uuid
+  companyId             String         @db.Uuid
+  branchId              String?        @db.Uuid
+  userId                String?        @db.Uuid
+  employeeNo            String
+  firstName             String
+  lastName              String
+  nationalId            String?
+  email                 String?
+  phone                 String?
+  birthDate             DateTime?      @db.Date
+  gender                Gender?
+  address               String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  hireDate              DateTime       @db.Date
+  terminationDate       DateTime?      @db.Date
+  terminationReason     String?
+  status                EmployeeStatus @default(ACTIVE)
+  employmentType        EmploymentType @default(FULL_TIME)
+  departmentId          String?        @db.Uuid
+  positionId            String?        @db.Uuid
+  managerId             String?        @db.Uuid
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
+  deletedAt             DateTime?
+
+  company            Company        @relation(fields: [companyId], references: [id])
+  branch             Branch?        @relation(fields: [branchId], references: [id])
+  user               User?          @relation(fields: [userId], references: [id])
+  department         Department?    @relation("EmployeeDepartment", fields: [departmentId], references: [id])
+  position           Position?      @relation(fields: [positionId], references: [id])
+  manager            Employee?      @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports            Employee[]     @relation("EmployeeManager")
+  managedDepartments Department[]   @relation("DepartmentManager")
+  leaveBalances      LeaveBalance[]
+  leaveRequests      LeaveRequest[]
+
+  @@unique([companyId, employeeNo])
+  @@unique([companyId, userId])
+  @@index([companyId, departmentId])
+  @@index([companyId, managerId])
+  @@map("employees")
+}
+
+model LeaveType {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @db.Uuid
+  code            String
+  name            String
+  /// Days granted per year when balances are accrued.
+  defaultDays     Int      @default(0)
+  isPaid          Boolean  @default(true)
+  /// Requests are checked against the employee's yearly balance.
+  requiresBalance Boolean  @default(true)
+  color           String   @default("#6366f1")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id])
+  balances      LeaveBalance[]
+  leaveRequests LeaveRequest[]
+
+  @@unique([companyId, code])
+  @@map("leave_types")
+}
+
+model LeaveBalance {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @db.Uuid
+  employeeId   String   @db.Uuid
+  leaveTypeId  String   @db.Uuid
+  year         Int
+  entitledDays Int
+  usedDays     Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, year])
+  @@index([companyId, year])
+  @@map("leave_balances")
+}
+
+model LeaveRequest {
+  id                 String             @id @default(uuid()) @db.Uuid
+  companyId          String             @db.Uuid
+  number             String
+  employeeId         String             @db.Uuid
+  leaveTypeId        String             @db.Uuid
+  startDate          DateTime           @db.Date
+  endDate            DateTime           @db.Date
+  /// Working days between start and end, excluding weekends and public holidays.
+  days               Int
+  reason             String?
+  status             LeaveRequestStatus @default(PENDING)
+  workflowInstanceId String?            @db.Uuid
+  createdById        String             @db.Uuid
+  decidedAt          DateTime?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  employee  Employee  @relation(fields: [employeeId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([employeeId, startDate])
+  @@map("leave_requests")
+}
+
+model Holiday {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  date      DateTime @db.Date
+  name      String
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, date])
+  @@map("holidays")
+}

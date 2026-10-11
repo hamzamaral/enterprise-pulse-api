@@ -31,6 +31,10 @@ prisma/migrations/       committed migrations, never edited after merge
 - Long or retryable work (mail, exports, integrations) goes to a BullMQ queue, not inside the request.
 - Money and quantities use Prisma `Decimal`; never JS floats for persisted amounts.
 - Document numbers come from `NumberingService.next(companyId, code, tx)` inside the same transaction that creates the document.
+- Approval-backed documents (leave, purchase requests, asset assignments...) start a workflow with `entityId` = document number
+  and update themselves in a listener filtered by `definitionCode` (see `hr/leave.listener.ts`). Transitions only move
+  from `PENDING`, so replayed events are harmless; workflow events are emitted with `emitAsync` and awaited.
+- Calendar dates (`@db.Date`) travel as `"YYYY-MM-DD"` strings via `toDateOnly` / `parseDateOnly`, never as timestamps.
 
 ## Commands
 

@@ -94,7 +94,7 @@ export class WorkflowService {
     });
 
     if (isLast) {
-      this.emitFinished(WORKFLOW_EVENTS.APPROVED, instance, user.id);
+      await this.emitFinished(WORKFLOW_EVENTS.APPROVED, instance, user.id);
       await this.notifications.notify({
         userIds: [instance.startedById],
         companyId: instance.companyId,
@@ -118,7 +118,7 @@ export class WorkflowService {
       status: WorkflowStatus.REJECTED,
       completedAt: new Date(),
     });
-    this.emitFinished(WORKFLOW_EVENTS.REJECTED, instance, user.id);
+    await this.emitFinished(WORKFLOW_EVENTS.REJECTED, instance, user.id);
     await this.notifications.notify({
       userIds: [instance.startedById],
       companyId: instance.companyId,
@@ -139,7 +139,7 @@ export class WorkflowService {
       status: WorkflowStatus.CANCELLED,
       completedAt: new Date(),
     });
-    this.emitFinished(WORKFLOW_EVENTS.CANCELLED, instance, user.id);
+    await this.emitFinished(WORKFLOW_EVENTS.CANCELLED, instance, user.id);
     return this.findOne(user, id);
   }
 
@@ -281,8 +281,9 @@ export class WorkflowService {
     });
   }
 
-  private emitFinished(event: string, instance: InstanceWithDefinition, actorId: string) {
-    this.events.emit(event, {
+  /** Awaits listeners so the business document is updated before the API call returns. */
+  private async emitFinished(event: string, instance: InstanceWithDefinition, actorId: string) {
+    await this.events.emitAsync(event, {
       instanceId: instance.id,
       companyId: instance.companyId,
       definitionCode: instance.definition.code,
