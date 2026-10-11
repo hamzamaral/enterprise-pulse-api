@@ -40,6 +40,11 @@ prisma/migrations/       committed migrations, never edited after merge
   the service checks ownership and widens access with `hasPermission(user, 'module:read')` from `common/auth/has-permission.ts`.
 - Cross-module rules are enforced by the owning module's exported service (e.g. HR termination asks
   `AssetAssignmentsService.countActiveForEmployee`), never by querying another module's tables.
+- Stock only changes through `StockMovementsService.post(tx, user, dto)` (exported by `InventoryModule`);
+  purchasing, sales and counts call it inside their own transaction. Postings are immutable: they lock variant rows
+  (`SELECT … FOR UPDATE`, sorted ids), decrement with a conditional `updateMany` (no row → "Insufficient stock"),
+  and append `StockTransaction` ledger rows ordered by `seq`. Corrections are new movements, never edits.
+  Call `notifyLowStock` after the transaction commits.
 
 ## Commands
 

@@ -26,6 +26,8 @@ model User {
   employees           Employee[]
   assignmentsGiven    AssetAssignment[]    @relation("AssignmentAssignedBy")
   assignmentsReturned AssetAssignment[]    @relation("AssignmentReturnedBy")
+  stockMovements      StockMovement[]      @relation("StockMovementCreatedBy")
+  stockCounts         StockCount[]         @relation("StockCountCreatedBy")
 
   @@map("users")
 }

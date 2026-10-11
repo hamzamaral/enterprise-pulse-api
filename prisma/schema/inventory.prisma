@@ -1,0 +1,342 @@
+enum ProductType {
+  GOODS
+  SERVICE
+}
+
+enum TrackingType {
+  NONE
+  LOT
+  SERIAL
+}
+
+enum StockMovementType {
+  RECEIPT
+  ISSUE
+  TRANSFER
+  ADJUSTMENT
+}
+
+enum SerialStatus {
+  IN_STOCK
+  ISSUED
+}
+
+enum StockCountStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+model ProductCategory {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  parentId  String?  @db.Uuid
+  code      String
+  name      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id])
+  parent   ProductCategory?  @relation("ProductCategoryTree", fields: [parentId], references: [id])
+  children ProductCategory[] @relation("ProductCategoryTree")
+  products Product[]
+
+  @@unique([companyId, code])
+  @@map("product_categories")
+}
+
+/// Product template; stock is always kept per variant (SKU). Products without variants have one default variant.
+model Product {
+  id            String       @id @default(uuid()) @db.Uuid
+  companyId     String       @db.Uuid
+  code          String
+  name          String
+  description   String?
+  categoryId    String?      @db.Uuid
+  unitId        String       @db.Uuid
+  type          ProductType  @default(GOODS)
+  trackingType  TrackingType @default(NONE)
+  purchasePrice Decimal?     @db.Decimal(18, 2)
+  salePrice     Decimal?     @db.Decimal(18, 2)
+  currency      String       @default("TRY")
+  vatRateId     String?      @db.Uuid
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  company  Company          @relation(fields: [companyId], references: [id])
+  category ProductCategory? @relation(fields: [categoryId], references: [id])
+  unit     Unit             @relation(fields: [unitId], references: [id])
+  vatRate  TaxRate?         @relation(fields: [vatRateId], references: [id])
+  variants ProductVariant[]
+
+  @@unique([companyId, code])
+  @@index([companyId, categoryId])
+  @@map("products")
+}
+
+model ProductVariant {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  productId   String   @db.Uuid
+  sku         String
+  /// Null for the default variant of a product without variants.
+  name        String?
+  /// Variant attributes, e.g. { "Renk": "Siyah", "Beden": "M" }.
+  attributes  Json?
+  barcode     String?
+  /// Reorder point across all warehouses; 0 disables the low-stock alert.
+  minStock    Decimal  @default(0) @db.Decimal(18, 3)
+  /// Moving weighted average unit cost, updated on every receipt.
+  averageCost Decimal  @default(0) @db.Decimal(18, 4)
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company      Company             @relation(fields: [companyId], references: [id])
+  product      Product             @relation(fields: [productId], references: [id])
+  balances     StockBalance[]
+  lots         StockLot[]
+  serials      SerialNumber[]
+  moveLines    StockMovementLine[]
+  transactions StockTransaction[]
+  countLines   StockCountLine[]
+
+  @@unique([companyId, sku])
+  @@unique([companyId, barcode])
+  @@index([productId])
+  @@map("product_variants")
+}
+
+model Warehouse {
+  id        String   @id @default(uuid()) @db.Uuid
+  companyId String   @db.Uuid
+  branchId  String?  @db.Uuid
+  code      String
+  name      String
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company      Company            @relation(fields: [companyId], references: [id])
+  branch       Branch?            @relation(fields: [branchId], references: [id])
+  balances     StockBalance[]
+  lotBalances  LotBalance[]
+  serials      SerialNumber[]
+  outgoing     StockMovement[]    @relation("MovementSource")
+  incoming     StockMovement[]    @relation("MovementTarget")
+  transactions StockTransaction[]
+  counts       StockCount[]
+
+  @@unique([companyId, code])
+  @@map("warehouses")
+}
+
+/// Current on-hand quantity of a variant in a warehouse (sum of its ledger entries).
+model StockBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  warehouseId String   @db.Uuid
+  variantId   String   @db.Uuid
+  quantity    Decimal  @default(0) @db.Decimal(18, 3)
+  updatedAt   DateTime @updatedAt
+
+  company   Company        @relation(fields: [companyId], references: [id])
+  warehouse Warehouse      @relation(fields: [warehouseId], references: [id])
+  variant   ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@unique([warehouseId, variantId])
+  @@index([companyId, variantId])
+  @@map("stock_balances")
+}
+
+model StockLot {
+  id         String    @id @default(uuid()) @db.Uuid
+  companyId  String    @db.Uuid
+  variantId  String    @db.Uuid
+  lotNo      String
+  expiryDate DateTime? @db.Date
+  createdAt  DateTime  @default(now())
+
+  company      Company             @relation(fields: [companyId], references: [id])
+  variant      ProductVariant      @relation(fields: [variantId], references: [id])
+  balances     LotBalance[]
+  moveLines    StockMovementLine[]
+  transactions StockTransaction[]
+  countLines   StockCountLine[]
+
+  @@unique([variantId, lotNo])
+  @@map("stock_lots")
+}
+
+model LotBalance {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  warehouseId String   @db.Uuid
+  lotId       String   @db.Uuid
+  quantity    Decimal  @default(0) @db.Decimal(18, 3)
+  updatedAt   DateTime @updatedAt
+
+  company   Company   @relation(fields: [companyId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+  lot       StockLot  @relation(fields: [lotId], references: [id])
+
+  @@unique([warehouseId, lotId])
+  @@map("lot_balances")
+}
+
+model SerialNumber {
+  id          String       @id @default(uuid()) @db.Uuid
+  companyId   String       @db.Uuid
+  variantId   String       @db.Uuid
+  serialNo    String
+  status      SerialStatus @default(IN_STOCK)
+  /// Current warehouse while IN_STOCK.
+  warehouseId String?      @db.Uuid
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  company   Company               @relation(fields: [companyId], references: [id])
+  variant   ProductVariant        @relation(fields: [variantId], references: [id])
+  warehouse Warehouse?            @relation(fields: [warehouseId], references: [id])
+  moveLines StockMovementSerial[]
+
+  @@unique([variantId, serialNo])
+  @@index([companyId, warehouseId, status])
+  @@map("serial_numbers")
+}
+
+/// Posted stock document; immutable once created (corrections are new adjustments).
+model StockMovement {
+  id                String            @id @default(uuid()) @db.Uuid
+  companyId         String            @db.Uuid
+  number            String
+  type              StockMovementType
+  movementDate      DateTime          @db.Date
+  /// ISSUE and TRANSFER take stock from here.
+  sourceWarehouseId String?           @db.Uuid
+  /// RECEIPT, TRANSFER and ADJUSTMENT put stock here (ADJUSTMENT lines are signed).
+  targetWarehouseId String?           @db.Uuid
+  reference         String?
+  notes             String?
+  createdById       String            @db.Uuid
+  createdAt         DateTime          @default(now())
+
+  company         Company             @relation(fields: [companyId], references: [id])
+  sourceWarehouse Warehouse?          @relation("MovementSource", fields: [sourceWarehouseId], references: [id])
+  targetWarehouse Warehouse?          @relation("MovementTarget", fields: [targetWarehouseId], references: [id])
+  createdBy       User                @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  lines           StockMovementLine[]
+  transactions    StockTransaction[]
+  stockCount      StockCount?
+
+  @@unique([companyId, number])
+  @@index([companyId, movementDate])
+  @@map("stock_movements")
+}
+
+model StockMovementLine {
+  id         String   @id @default(uuid()) @db.Uuid
+  movementId String   @db.Uuid
+  variantId  String   @db.Uuid
+  lotId      String?  @db.Uuid
+  /// Positive, except ADJUSTMENT lines which carry the sign of the correction.
+  quantity   Decimal  @db.Decimal(18, 3)
+  unitCost   Decimal? @db.Decimal(18, 4)
+
+  movement     StockMovement         @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  variant      ProductVariant        @relation(fields: [variantId], references: [id])
+  lot          StockLot?             @relation(fields: [lotId], references: [id])
+  serials      StockMovementSerial[]
+  transactions StockTransaction[]
+
+  @@index([movementId])
+  @@map("stock_movement_lines")
+}
+
+model StockMovementSerial {
+  lineId   String @db.Uuid
+  serialId String @db.Uuid
+
+  line   StockMovementLine @relation(fields: [lineId], references: [id], onDelete: Cascade)
+  serial SerialNumber      @relation(fields: [serialId], references: [id])
+
+  @@id([lineId, serialId])
+  @@map("stock_movement_serials")
+}
+
+/// Stock ledger: one signed entry per warehouse affected by a movement line (a transfer writes two).
+model StockTransaction {
+  id           String   @id @default(uuid()) @db.Uuid
+  /// Posting order; entries of one transaction share `createdAt`.
+  seq          BigInt   @default(autoincrement())
+  companyId    String   @db.Uuid
+  movementId   String   @db.Uuid
+  lineId       String   @db.Uuid
+  warehouseId  String   @db.Uuid
+  variantId    String   @db.Uuid
+  lotId        String?  @db.Uuid
+  quantity     Decimal  @db.Decimal(18, 3)
+  unitCost     Decimal  @db.Decimal(18, 4)
+  /// Warehouse balance of the variant right after this entry.
+  balanceAfter Decimal  @db.Decimal(18, 3)
+  movementDate DateTime @db.Date
+  createdAt    DateTime @default(now())
+
+  company   Company           @relation(fields: [companyId], references: [id])
+  movement  StockMovement     @relation(fields: [movementId], references: [id])
+  line      StockMovementLine @relation(fields: [lineId], references: [id])
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
+  variant   ProductVariant    @relation(fields: [variantId], references: [id])
+  lot       StockLot?         @relation(fields: [lotId], references: [id])
+
+  @@index([companyId, variantId, seq])
+  @@index([warehouseId, variantId])
+  @@map("stock_transactions")
+}
+
+model StockCount {
+  id           String           @id @default(uuid()) @db.Uuid
+  companyId    String           @db.Uuid
+  number       String
+  warehouseId  String           @db.Uuid
+  status       StockCountStatus @default(DRAFT)
+  countDate    DateTime         @db.Date
+  notes        String?
+  createdById  String           @db.Uuid
+  completedAt  DateTime?
+  adjustmentId String?          @unique @db.Uuid
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  company    Company          @relation(fields: [companyId], references: [id])
+  warehouse  Warehouse        @relation(fields: [warehouseId], references: [id])
+  createdBy  User             @relation("StockCountCreatedBy", fields: [createdById], references: [id])
+  adjustment StockMovement?   @relation(fields: [adjustmentId], references: [id])
+  lines      StockCountLine[]
+
+  @@unique([companyId, number])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id          String   @id @default(uuid()) @db.Uuid
+  countId     String   @db.Uuid
+  variantId   String   @db.Uuid
+  lotId       String?  @db.Uuid
+  /// System quantity when the count was started.
+  expectedQty Decimal  @db.Decimal(18, 3)
+  /// Null until counted; uncounted lines are not adjusted.
+  countedQty  Decimal? @db.Decimal(18, 3)
+
+  count   StockCount     @relation(fields: [countId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+  lot     StockLot?      @relation(fields: [lotId], references: [id])
+
+  @@index([countId])
+  @@map("stock_count_lines")
+}

@@ -21,6 +21,8 @@ export const PERMISSION_REGISTRY = {
   leave: ['read', 'create', 'update'],
   /** update also covers categories, locations and maintenance; assign = hand over, return, transfer. */
   assets: ['read', 'create', 'update', 'delete', 'assign'],
+  /** create/update/delete = products, variants, categories, warehouses; move = post stock movements. */
+  inventory: ['read', 'create', 'update', 'delete', 'move', 'count'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

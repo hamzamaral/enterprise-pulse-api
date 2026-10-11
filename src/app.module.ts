@@ -22,6 +22,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
 import { AssetsModule } from './modules/assets/assets.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { HrModule } from './modules/hr/hr.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
@@ -72,6 +73,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     WorkflowModule,
     HrModule,
     AssetsModule,
+    InventoryModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

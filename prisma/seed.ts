@@ -17,6 +17,7 @@ import { parseDateOnly } from '../src/common/dates/date-only';
 import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
+import { seedInventory } from './seed-inventory';
 
 const prisma = new PrismaClient();
 const YEAR = new Date().getFullYear();
@@ -47,6 +48,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'employees:read',
       'leave:read',
       'assets:read',
+      'inventory:read',
     ],
   },
   employee: {
@@ -169,6 +171,8 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['INVOICE', 'Fatura', 'FTR'],
     ['ASSET', 'Demirbaş', 'DMB'],
     ['ASSET_ASSIGNMENT', 'Zimmet Tutanağı', 'ZMT'],
+    ['STOCK_MOVEMENT', 'Stok Hareketi', 'STH'],
+    ['STOCK_COUNT', 'Stok Sayımı', 'SAY'],
     ['LEAVE_REQUEST', 'İzin Talebi', 'IZN'],
     ['EMPLOYEE', 'Personel Sicil No', 'PRS', false],
   ];
@@ -1083,6 +1087,9 @@ async function main() {
 
   console.log('Seeding assets...');
   await seedAssets(pulse.id, admin.id);
+
+  console.log('Seeding inventory...');
+  await seedInventory(prisma, pulse.id, admin.id);
 
   console.log('Seeding workflow...');
   const definition = await prisma.workflowDefinition.upsert({

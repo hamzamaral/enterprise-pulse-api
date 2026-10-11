@@ -39,6 +39,17 @@ model Company {
   assets              Asset[]
   assetAssignments    AssetAssignment[]
   assetMaintenances   AssetMaintenance[]
+  productCategories   ProductCategory[]
+  products            Product[]
+  productVariants     ProductVariant[]
+  warehouses          Warehouse[]
+  stockBalances       StockBalance[]
+  stockLots           StockLot[]
+  lotBalances         LotBalance[]
+  serialNumbers       SerialNumber[]
+  stockMovements      StockMovement[]
+  stockTransactions   StockTransaction[]
+  stockCounts         StockCount[]
 
   @@map("companies")
 }
@@ -61,6 +72,7 @@ model Branch {
   memberships    UserCompany[]
   employees      Employee[]
   assetLocations AssetLocation[]
+  warehouses     Warehouse[]
 
   @@unique([companyId, code])
   @@index([companyId])

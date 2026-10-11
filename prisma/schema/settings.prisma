@@ -36,7 +36,8 @@ model TaxRate {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id])
+  company  Company   @relation(fields: [companyId], references: [id])
+  products Product[]
 
   @@unique([companyId, code])
   @@map("tax_rates")
@@ -51,7 +52,8 @@ model Unit {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id])
+  company  Company   @relation(fields: [companyId], references: [id])
+  products Product[]
 
   @@unique([companyId, code])
   @@map("units")

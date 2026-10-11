@@ -66,6 +66,33 @@ export class NotificationsService {
     }
   }
 
+  /** Active members of the company holding `permission` through a role, plus super admins. */
+  async findUserIdsWithPermission(companyId: string, permission: string): Promise<string[]> {
+    const users = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        deletedAt: null,
+        memberships: { some: { companyId } },
+        OR: [
+          { isSuperAdmin: true },
+          {
+            roles: {
+              some: {
+                companyId,
+                role: {
+                  deletedAt: null,
+                  permissions: { some: { permission: { code: permission } } },
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+    return users.map((u) => u.id);
+  }
+
   async send(companyId: string, dto: SendNotificationDto): Promise<void> {
     const userIds =
       dto.userIds ??

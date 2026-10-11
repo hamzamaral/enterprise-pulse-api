@@ -9,6 +9,13 @@ const SKIPPED_MODELS = new Set<string>([
   'RefreshToken',
   'PasswordResetToken',
   'NumberSequence',
+  // Stock ledger rows: the posted StockMovement / StockCount is the audited record.
+  'StockBalance',
+  'LotBalance',
+  'StockTransaction',
+  'StockMovementLine',
+  'StockMovementSerial',
+  'StockCountLine',
 ]);
 
 const REDACTED_FIELDS = new Set(['passwordHash', 'twoFactorSecret', 'tokenHash']);
