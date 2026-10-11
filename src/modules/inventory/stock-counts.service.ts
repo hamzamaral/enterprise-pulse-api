@@ -43,6 +43,7 @@ const detailInclude = {
       variant: {
         select: {
           sku: true,
+          barcode: true,
           name: true,
           product: { select: { name: true, unit: { select: { code: true } } } },
         },
@@ -354,6 +355,7 @@ export class StockCountsService {
           id: line.id,
           variantId: line.variantId,
           sku: line.variant.sku,
+          barcode: line.variant.barcode,
           productName: line.variant.product.name,
           variantName: line.variant.name,
           unitCode: line.variant.product.unit.code,

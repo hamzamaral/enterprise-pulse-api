@@ -396,6 +396,7 @@ export class StockCountLineDto {
   id: string;
   variantId: string;
   sku: string;
+  barcode: string | null;
   productName: string;
   variantName: string | null;
   unitCode: string;
