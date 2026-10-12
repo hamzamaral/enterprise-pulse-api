@@ -71,6 +71,9 @@ model Company {
   treasuryTxs         TreasuryTransaction[]
   partnerPayments     PartnerPayment[]
   cheques             Cheque[]
+  leads               Lead[]
+  opportunities       Opportunity[]
+  crmActivities       CrmActivity[]
 
   @@map("companies")
 }

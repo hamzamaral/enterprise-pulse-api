@@ -68,14 +68,17 @@ export class PartnersService {
   }
 
   async create(companyId: string, dto: CreatePartnerDto): Promise<PartnerDto> {
-    const row = await this.prisma.$transaction(async (tx) => {
-      const code = dto.code?.trim() || (await this.numbering.next(companyId, 'PARTNER', tx));
-      await this.assertCodeFree(tx, companyId, code);
-      return tx.businessPartner.create({
-        data: { ...dto, code, companyId, title: dto.title.trim() },
-      });
-    });
+    const row = await this.prisma.$transaction((tx) => this.createInTx(tx, companyId, dto));
     return toDto(row, new Prisma.Decimal(0));
+  }
+
+  /** For callers that create a partner as part of a larger transaction (e.g. lead conversion). */
+  async createInTx(tx: PrismaTx, companyId: string, dto: CreatePartnerDto) {
+    const code = dto.code?.trim() || (await this.numbering.next(companyId, 'PARTNER', tx));
+    await this.assertCodeFree(tx, companyId, code);
+    return tx.businessPartner.create({
+      data: { ...dto, code, companyId, title: dto.title.trim() },
+    });
   }
 
   async update(companyId: string, id: string, dto: UpdatePartnerDto): Promise<PartnerDto> {

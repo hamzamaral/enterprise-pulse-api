@@ -54,6 +54,9 @@ model BusinessPartner {
   cheques          Cheque[]             @relation("ChequePartner")
   endorsedCheques  Cheque[]             @relation("ChequeEndorsedTo")
   chequeEvents     ChequeEvent[]        @relation("ChequeEventPartner")
+  leads            Lead[]
+  opportunities    Opportunity[]
+  crmActivities    CrmActivity[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

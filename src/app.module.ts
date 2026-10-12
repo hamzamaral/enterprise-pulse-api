@@ -23,6 +23,7 @@ import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
+import { CrmModule } from './modules/crm/crm.module';
 import { HrModule } from './modules/hr/hr.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { FinanceModule } from './modules/finance/finance.module';
@@ -84,6 +85,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     SalesModule,
     FinanceModule,
     ReportsModule,
+    CrmModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

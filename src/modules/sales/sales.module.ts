@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CrmModule } from '../crm/crm.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { PartnersModule } from '../partners/partners.module';
 import { DeliveryNotesService } from './delivery-notes.service';
@@ -16,7 +17,7 @@ import { SalesReturnsService } from './sales-returns.service';
 
 /** Sales: quotes → orders (stock reservation) → delivery notes → invoices → returns. */
 @Module({
-  imports: [InventoryModule, PartnersModule],
+  imports: [InventoryModule, PartnersModule, CrmModule],
   controllers: [
     SalesQuotesController,
     SalesOrdersController,

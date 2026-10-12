@@ -41,6 +41,11 @@ export class CreateSalesQuoteDto extends CurrencyInputDto {
   @IsUUID()
   partnerId: string;
 
+  /** CRM opportunity the quote answers; it must belong to the same customer. */
+  @IsOptional()
+  @IsUUID()
+  opportunityId?: string;
+
   @IsDateString({ strict: true })
   quoteDate: string;
 
@@ -78,6 +83,9 @@ export class SalesQuoteDto extends DocumentTotalsDto {
   partnerId: string;
   partnerCode: string;
   partnerTitle: string;
+  opportunityId: string | null;
+  opportunityNumber: string | null;
+  opportunityTitle: string | null;
   quoteDate: string;
   validUntil: string | null;
   /** Open and past its validity date. */

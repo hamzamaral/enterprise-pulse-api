@@ -9,6 +9,7 @@ import type { AuthUser } from '../../common/auth/auth-user';
 import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/paginate';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { OpportunitiesService } from '../crm/opportunities.service';
 import { NumberingService } from '../numbering/numbering.service';
 import { CUSTOMER_TYPES, PartnersService } from '../partners/partners.service';
 import {
@@ -29,6 +30,7 @@ const SORTABLE = ['number', 'quoteDate', 'validUntil', 'grandTotal', 'createdAt'
 
 const listInclude = {
   partner: { select: { code: true, title: true } },
+  opportunity: { select: { number: true, title: true } },
   order: { select: { id: true, number: true } },
   createdBy: { select: { firstName: true, lastName: true } },
   _count: { select: { lines: true } },
@@ -52,6 +54,7 @@ export class SalesQuotesService {
     private readonly numbering: NumberingService,
     private readonly partners: PartnersService,
     private readonly trade: TradeService,
+    private readonly opportunities: OpportunitiesService,
   ) {}
 
   async findAll(companyId: string, query: SalesQuoteQueryDto) {
@@ -115,12 +118,16 @@ export class SalesQuotesService {
         dto.lines.map((l) => l.variantId),
       );
       const priced = this.trade.priceLines(dto.lines, variants);
+      if (dto.opportunityId) {
+        await this.opportunities.attachQuote(tx, companyId, dto.opportunityId, partner.id);
+      }
       const number = await this.numbering.next(companyId, 'SALES_QUOTE', tx);
       return tx.salesQuote.create({
         data: {
           companyId,
           number,
           partnerId: partner.id,
+          opportunityId: dto.opportunityId ?? null,
           quoteDate,
           validUntil,
           currencyCode: currency.currencyCode,
@@ -213,6 +220,7 @@ export class SalesQuotesService {
         where: { id: quote.id },
         data: { status: SalesQuoteStatus.ACCEPTED },
       });
+      if (quote.opportunityId) await this.opportunities.markWonByQuote(tx, quote.opportunityId);
       return { orderId: order.id };
     });
   }
@@ -225,6 +233,9 @@ function toDto(row: ListRow): SalesQuoteDto {
     partnerId: row.partnerId,
     partnerCode: row.partner.code,
     partnerTitle: row.partner.title,
+    opportunityId: row.opportunityId,
+    opportunityNumber: row.opportunity?.number ?? null,
+    opportunityTitle: row.opportunity?.title ?? null,
     quoteDate: toDateOnly(row.quoteDate),
     validUntil: row.validUntil ? toDateOnly(row.validUntil) : null,
     expired: row.status === SalesQuoteStatus.OPEN && !!row.validUntil && row.validUntil < today(),

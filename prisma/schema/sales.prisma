@@ -20,6 +20,7 @@ model SalesQuote {
   companyId     String           @db.Uuid
   number        String
   partnerId     String           @db.Uuid
+  opportunityId String?          @db.Uuid
   quoteDate     DateTime         @db.Date
   validUntil    DateTime?        @db.Date
   currencyCode  String
@@ -34,14 +35,16 @@ model SalesQuote {
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
 
-  company   Company          @relation(fields: [companyId], references: [id])
-  partner   BusinessPartner  @relation(fields: [partnerId], references: [id])
-  createdBy User             @relation("SalesQuoteCreatedBy", fields: [createdById], references: [id])
-  lines     SalesQuoteLine[]
-  order     SalesOrder?
+  company     Company          @relation(fields: [companyId], references: [id])
+  partner     BusinessPartner  @relation(fields: [partnerId], references: [id])
+  opportunity Opportunity?     @relation(fields: [opportunityId], references: [id])
+  createdBy   User             @relation("SalesQuoteCreatedBy", fields: [createdById], references: [id])
+  lines       SalesQuoteLine[]
+  order       SalesOrder?
 
   @@unique([companyId, number])
   @@index([companyId, status])
+  @@index([opportunityId])
   @@map("sales_quotes")
 }
 

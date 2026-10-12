@@ -1,0 +1,139 @@
+enum LeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DISQUALIFIED
+  /// Turned into a customer (and usually an opportunity).
+  CONVERTED
+}
+
+enum LeadSource {
+  WEBSITE
+  REFERRAL
+  EVENT
+  COLD_CALL
+  SOCIAL_MEDIA
+  PARTNER
+  OTHER
+}
+
+enum OpportunityStage {
+  PROSPECTING
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
+enum CrmActivityType {
+  CALL
+  MEETING
+  EMAIL
+  TASK
+  NOTE
+}
+
+/// A prospect that is not a customer yet (potansiyel müşteri).
+model Lead {
+  id               String     @id @default(uuid()) @db.Uuid
+  companyId        String     @db.Uuid
+  number           String
+  companyName      String
+  contactName      String?
+  email            String?
+  phone            String?
+  city             String?
+  source           LeadSource @default(OTHER)
+  status           LeadStatus @default(NEW)
+  /// Rough deal size, in `currencyCode`.
+  estimatedValue   Decimal?   @db.Decimal(18, 2)
+  currencyCode     String     @default("TRY")
+  notes            String?
+  ownerId          String?    @db.Uuid
+  disqualifyReason String?
+  /// Customer created (or matched) on conversion.
+  partnerId        String?    @db.Uuid
+  convertedAt      DateTime?
+  createdById      String     @db.Uuid
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  company       Company          @relation(fields: [companyId], references: [id])
+  owner         User?            @relation("LeadOwner", fields: [ownerId], references: [id])
+  createdBy     User             @relation("LeadCreatedBy", fields: [createdById], references: [id])
+  partner       BusinessPartner? @relation(fields: [partnerId], references: [id])
+  opportunities Opportunity[]
+  activities    CrmActivity[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("leads")
+}
+
+/// A potential sale to a customer, tracked through the pipeline (fırsat).
+model Opportunity {
+  id                String           @id @default(uuid()) @db.Uuid
+  companyId         String           @db.Uuid
+  number            String
+  title             String
+  partnerId         String           @db.Uuid
+  leadId            String?          @db.Uuid
+  stage             OpportunityStage @default(PROSPECTING)
+  amount            Decimal          @db.Decimal(18, 2)
+  currencyCode      String
+  /// Win probability in percent; reset to the stage default on every stage change.
+  probability       Int
+  expectedCloseDate DateTime?        @db.Date
+  ownerId           String?          @db.Uuid
+  description       String?
+  lostReason        String?
+  closedAt          DateTime?
+  createdById       String           @db.Uuid
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  company    Company         @relation(fields: [companyId], references: [id])
+  partner    BusinessPartner @relation(fields: [partnerId], references: [id])
+  lead       Lead?           @relation(fields: [leadId], references: [id])
+  owner      User?           @relation("OpportunityOwner", fields: [ownerId], references: [id])
+  createdBy  User            @relation("OpportunityCreatedBy", fields: [createdById], references: [id])
+  quotes     SalesQuote[]
+  activities CrmActivity[]
+
+  @@unique([companyId, number])
+  @@index([companyId, stage])
+  @@map("opportunities")
+}
+
+/// Call, meeting, e-mail, task or note about a lead, an opportunity or a partner.
+model CrmActivity {
+  id            String          @id @default(uuid()) @db.Uuid
+  companyId     String          @db.Uuid
+  type          CrmActivityType
+  subject       String
+  description   String?
+  dueAt         DateTime?
+  completedAt   DateTime?
+  /// Who has to do it.
+  ownerId       String          @db.Uuid
+  leadId        String?         @db.Uuid
+  opportunityId String?         @db.Uuid
+  partnerId     String?         @db.Uuid
+  createdById   String          @db.Uuid
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  company     Company          @relation(fields: [companyId], references: [id])
+  owner       User             @relation("CrmActivityOwner", fields: [ownerId], references: [id])
+  createdBy   User             @relation("CrmActivityCreatedBy", fields: [createdById], references: [id])
+  lead        Lead?            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  opportunity Opportunity?     @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+  partner     BusinessPartner? @relation(fields: [partnerId], references: [id])
+
+  @@index([companyId, ownerId, completedAt])
+  @@index([leadId])
+  @@index([opportunityId])
+  @@index([partnerId])
+  @@map("crm_activities")
+}

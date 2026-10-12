@@ -36,6 +36,8 @@ export const PERMISSION_REGISTRY = {
   sales: ['read', 'create', 'update', 'approve', 'deliver', 'invoice'],
   /** create = collections, payments and cheques; approve = cancel postings. */
   finance: ['read', 'create', 'update', 'approve'],
+  /** Leads, opportunities and activities; update also covers stage changes and conversions. */
+  crm: ['read', 'create', 'update', 'delete'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;
