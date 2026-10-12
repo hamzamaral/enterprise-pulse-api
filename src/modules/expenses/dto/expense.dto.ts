@@ -136,6 +136,11 @@ export class UpdateExpenseReportDto {
   @MaxLength(2000)
   description?: string | null;
 
+  /** Working project the employee is a member of; approved totals count towards its cost. */
+  @IsOptional()
+  @IsUUID()
+  projectId?: string | null;
+
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(100)
@@ -160,6 +165,10 @@ export class ExpenseReportQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   employeeId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  projectId?: string;
 
   /** Only the current user's reports, even with `expenses:read`. */
   @IsOptional()
@@ -208,6 +217,9 @@ export class ExpenseReportDto {
   employeeId: string;
   employeeName: string;
   departmentName: string | null;
+  projectId: string | null;
+  projectNumber: string | null;
+  projectName: string | null;
   @ApiProperty({ enum: ExpenseReportStatus, enumName: 'ExpenseReportStatus' })
   status: ExpenseReportStatus;
   /** Company currency. */

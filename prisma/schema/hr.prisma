@@ -112,6 +112,10 @@ model Employee {
   shiftAssignments   ShiftAssignment[]
   attendance         AttendanceRecord[]
   expenseReports     ExpenseReport[]
+  managedProjects    Project[]          @relation("ProjectManager")
+  projectMembers     ProjectMember[]
+  assignedTasks      ProjectTask[]      @relation("ProjectTaskAssignee")
+  timeEntries        TimeEntry[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

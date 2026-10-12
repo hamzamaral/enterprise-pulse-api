@@ -23,6 +23,7 @@ import { FilesService } from '../files/files.service';
 import { TreasuryService } from '../finance/treasury.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NumberingService } from '../numbering/numbering.service';
+import { ProjectsService } from '../projects/projects.service';
 import { WorkflowService } from '../workflow/workflow.service';
 import type {
   CreateExpenseReportDto,
@@ -63,6 +64,7 @@ const listInclude = {
       department: { select: { name: true } },
     },
   },
+  project: { select: { number: true, name: true } },
   _count: { select: { lines: true } },
 } satisfies Prisma.ExpenseReportInclude;
 
@@ -96,6 +98,7 @@ export class ExpenseReportsService {
     private readonly treasury: TreasuryService,
     private readonly files: FilesService,
     private readonly notifications: NotificationsService,
+    private readonly projects: ProjectsService,
   ) {}
 
   async findAll(user: AuthUser, query: ExpenseReportQueryDto) {
@@ -103,7 +106,7 @@ export class ExpenseReportsService {
     const where: Prisma.ExpenseReportWhereInput = {
       AND: [
         this.scope(user, query.mine === 'true'),
-        { status: query.status, employeeId: query.employeeId },
+        { status: query.status, employeeId: query.employeeId, projectId: query.projectId },
         search
           ? {
               OR: [
@@ -146,12 +149,16 @@ export class ExpenseReportsService {
     const employee = await this.resolveEmployee(user, dto.employeeId);
     const base = await this.baseCurrency(companyId);
     const report = await this.prisma.$transaction(async (tx) => {
+      if (dto.projectId) {
+        await this.projects.assertChargeable(tx, companyId, dto.projectId, employee.id);
+      }
       const lines = await this.buildLines(tx, user, dto.lines, base, null);
       const created = await tx.expenseReport.create({
         data: {
           companyId,
           number: await this.numbering.next(companyId, 'EXPENSE_REPORT', tx),
           employeeId: employee.id,
+          projectId: dto.projectId ?? null,
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
           totalAmount: reportTotal(lines),
@@ -177,6 +184,10 @@ export class ExpenseReportsService {
       if (!EDITABLE_STATUSES.includes(report.status)) {
         throw new ConflictException('Only draft or rejected reports can be edited');
       }
+      const projectId = dto.projectId ?? null;
+      if (projectId && projectId !== report.projectId) {
+        await this.projects.assertChargeable(tx, user.companyId, projectId, report.employeeId);
+      }
       const lines = await this.buildLines(tx, user, dto.lines, base, id);
       await tx.expenseLine.deleteMany({ where: { reportId: id } });
       await tx.expenseReport.update({
@@ -184,6 +195,7 @@ export class ExpenseReportsService {
         data: {
           title: dto.title.trim(),
           description: dto.description?.trim() || null,
+          projectId,
           totalAmount: reportTotal(lines),
           status: ExpenseReportStatus.DRAFT,
           lines: { createMany: { data: lines } },
@@ -209,15 +221,18 @@ export class ExpenseReportsService {
       where: { companyId: user.companyId, code: EXPENSE_WORKFLOW, isActive: true },
     });
     const now = new Date();
-    const moved = await this.prisma.expenseReport.updateMany({
-      where: { id, status: row.status },
-      data: {
-        status: hasWorkflow ? ExpenseReportStatus.PENDING : ExpenseReportStatus.APPROVED,
-        submittedAt: now,
-        decidedAt: hasWorkflow ? null : now,
-      },
+    await this.prisma.$transaction(async (tx) => {
+      const moved = await tx.expenseReport.updateMany({
+        where: { id, status: row.status },
+        data: {
+          status: hasWorkflow ? ExpenseReportStatus.PENDING : ExpenseReportStatus.APPROVED,
+          submittedAt: now,
+          decidedAt: hasWorkflow ? null : now,
+        },
+      });
+      if (!moved.count) throw new ConflictException('Report was changed by someone else');
+      if (!hasWorkflow) await this.chargeProject(tx, row, 1);
     });
-    if (!moved.count) throw new ConflictException('Report was changed by someone else');
 
     if (!hasWorkflow) {
       await this.notifyPayers(row, user.companyId);
@@ -266,11 +281,19 @@ export class ExpenseReportsService {
     if (row.status === ExpenseReportStatus.PENDING && row.workflowInstanceId) {
       await this.workflow.cancel(user, row.workflowInstanceId, reason);
     }
-    const moved = await this.prisma.expenseReport.updateMany({
-      where: { id, status: { in: CANCELLABLE_STATUSES } },
-      data: { status: ExpenseReportStatus.CANCELLED, decidedAt: new Date() },
+    await this.prisma.$transaction(async (tx) => {
+      const report = await this.lock(tx, user.companyId, id);
+      if (!CANCELLABLE_STATUSES.includes(report.status)) {
+        throw new ConflictException('Report is already closed');
+      }
+      await tx.expenseReport.update({
+        where: { id },
+        data: { status: ExpenseReportStatus.CANCELLED, decidedAt: new Date() },
+      });
+      if (report.status === ExpenseReportStatus.APPROVED) {
+        await this.chargeProject(tx, report, -1);
+      }
     });
-    if (!moved.count) throw new ConflictException('Report is already closed');
     return this.findOne(user, id);
   }
 
@@ -292,9 +315,16 @@ export class ExpenseReportsService {
   ): Promise<void> {
     const status =
       outcome === 'CANCELLED' ? ExpenseReportStatus.DRAFT : ExpenseReportStatus[outcome];
-    const moved = await this.prisma.expenseReport.updateMany({
-      where: { companyId, number, status: ExpenseReportStatus.PENDING },
-      data: { status, decidedAt: outcome === 'CANCELLED' ? null : new Date() },
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const result = await tx.expenseReport.updateMany({
+        where: { companyId, number, status: ExpenseReportStatus.PENDING },
+        data: { status, decidedAt: outcome === 'CANCELLED' ? null : new Date() },
+      });
+      if (result.count && status === ExpenseReportStatus.APPROVED) {
+        const report = await tx.expenseReport.findFirstOrThrow({ where: { companyId, number } });
+        await this.chargeProject(tx, report, 1);
+      }
+      return result;
     });
     if (moved.count && status === ExpenseReportStatus.APPROVED) {
       const row = await this.prisma.expenseReport.findFirstOrThrow({
@@ -627,6 +657,16 @@ export class ExpenseReportsService {
     await tx.fileObject.updateMany({ where: { id: { in: ids } }, data: { entityId: reportId } });
   }
 
+  /** Approved and paid reports count towards their project's cost. */
+  private async chargeProject(
+    tx: PrismaTx,
+    report: { projectId: string | null; totalAmount: Prisma.Decimal },
+    sign: 1 | -1,
+  ) {
+    if (!report.projectId) return;
+    await this.projects.addExpenseCost(tx, report.projectId, report.totalAmount.mul(sign));
+  }
+
   /** Tells whoever reimburses expenses (`expenses:pay`) that a report is ready to pay. */
   private async notifyPayers(row: ListRow, companyId: string) {
     const userIds = await this.notifications.findUserIdsWithPermission(companyId, 'expenses:pay');
@@ -681,6 +721,9 @@ function toDto(row: ListRow, base: string): ExpenseReportDto {
     employeeId: row.employeeId,
     employeeName: employeeName(row),
     departmentName: row.employee.department?.name ?? null,
+    projectId: row.projectId,
+    projectNumber: row.project?.number ?? null,
+    projectName: row.project?.name ?? null,
     status: row.status,
     totalAmount: money(row.totalAmount),
     currencyCode: base,

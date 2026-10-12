@@ -55,6 +55,8 @@ model User {
   createdCrmActivities  CrmActivity[]         @relation("CrmActivityCreatedBy")
   paidExpenseReports    ExpenseReport[]       @relation("ExpenseReportPaidBy")
   createdExpenseReports ExpenseReport[]       @relation("ExpenseReportCreatedBy")
+  createdProjects       Project[]             @relation("ProjectCreatedBy")
+  createdProjectTasks   ProjectTask[]         @relation("ProjectTaskCreatedBy")
 
   @@map("users")
 }

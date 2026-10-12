@@ -57,6 +57,7 @@ model BusinessPartner {
   leads            Lead[]
   opportunities    Opportunity[]
   crmActivities    CrmActivity[]
+  projects         Project[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

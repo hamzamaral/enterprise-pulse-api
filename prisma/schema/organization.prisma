@@ -76,6 +76,8 @@ model Company {
   crmActivities       CrmActivity[]
   expenseCategories   ExpenseCategory[]
   expenseReports      ExpenseReport[]
+  projects            Project[]
+  timeEntries         TimeEntry[]
 
   @@map("companies")
 }

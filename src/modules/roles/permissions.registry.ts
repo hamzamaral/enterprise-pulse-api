@@ -43,6 +43,12 @@ export const PERMISSION_REGISTRY = {
    * update = categories and closing others' reports, pay = reimburse and reverse payments.
    */
   expenses: ['read', 'create', 'update', 'pay'],
+  /**
+   * Members work on their own projects without a permission and leads / managers run them.
+   * read = every project and the time report, create = new projects, update = run any project,
+   * delete = remove projects that have no logged time.
+   */
+  projects: ['read', 'create', 'update', 'delete'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;
