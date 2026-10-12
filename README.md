@@ -35,8 +35,9 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Cari hesaplar**          | Müşteri / tedarikçi kartları, vade ve kredi limiti, döviz; değişmez cari hareket defteri, iptalde ters kayıt                                                                                                                                                                                                                       |
 | **Satın Alma**             | Onay akışlı satın alma talebi, tedarikçi teklifleri ve karşılaştırma, sipariş onayı, kısmi mal kabul (lot / seri), üç yönlü eşleştirmeli alış faturası                                                                                                                                                                             |
 | **Satış**                  | Teklif ve siparişe dönüştürme, onayda kredi limiti kontrolü ve stok rezervasyonu, lot / seri seçimli sevk irsaliyesi, sevk edilen miktar kadar satış faturası, stoğa ve cariye işleyen satış iadesi                                                                                                                                |
+| **Finans**                 | Kasa ve banka hesapları, tahsilat / ödeme ve faturalara otomatik (en eski vadeden) veya seçmeli kapama, müşteri çeki / senedi portföyü (bankaya verme, tahsil, ciro, karşılıksız), kendi çeklerimizin ödenmesi, yaşlandırma raporu ve nakit pozisyonu                                                                              |
 
-Sıradaki fazlar: finans (tahsilat / ödeme, kasa ve banka, çek / senet), raporlama
+Sıradaki faz: raporlama (grafikler, filtrelenebilir raporlar, PDF)
 ([yol haritası](https://github.com/hamzamaral/EnterprisePulse/blob/main/docs/roadmap.md)).
 
 ## Mimari ve teknik kararlar
