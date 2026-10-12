@@ -36,8 +36,9 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Satın Alma**             | Onay akışlı satın alma talebi, tedarikçi teklifleri ve karşılaştırma, sipariş onayı, kısmi mal kabul (lot / seri), üç yönlü eşleştirmeli alış faturası                                                                                                                                                                             |
 | **Satış**                  | Teklif ve siparişe dönüştürme, onayda kredi limiti kontrolü ve stok rezervasyonu, lot / seri seçimli sevk irsaliyesi, sevk edilen miktar kadar satış faturası, stoğa ve cariye işleyen satış iadesi                                                                                                                                |
 | **Finans**                 | Kasa ve banka hesapları, tahsilat / ödeme ve faturalara otomatik (en eski vadeden) veya seçmeli kapama, müşteri çeki / senedi portföyü (bankaya verme, tahsil, ciro, karşılıksız), kendi çeklerimizin ödenmesi, yaşlandırma raporu ve nakit pozisyonu                                                                              |
+| **Raporlar**               | Satış ve alış analizi (aylık, cari veya ürün bazında; şirket para biriminde, iadeler düşülmüş), açılış bakiyeli ve ters kayıtları ayıklayan aylık nakit akışı                                                                                                                                                                      |
 
-Sıradaki faz: raporlama (grafikler, filtrelenebilir raporlar, PDF)
+Sıradaki fazlar: CRM, bordro, masraf, proje yönetimi ve canlı demo
 ([yol haritası](https://github.com/hamzamaral/EnterprisePulse/blob/main/docs/roadmap.md)).
 
 ## Mimari ve teknik kararlar

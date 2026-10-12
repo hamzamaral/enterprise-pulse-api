@@ -55,6 +55,9 @@ prisma/migrations/       committed migrations, never edited after merge
   ledger and settle open invoices of the same currency (explicit allocations or `allocateFifo`, oldest due first);
   cancelling releases allocations and reverses both ledgers. Cheques / notes move only through `ChequesService`
   transitions, each writing a `ChequeEvent`; money moves on collect / pay, a bounce voids the original collection.
+- `modules/reports` is read-only and guarded by the owning module's read permission (`sales:read`,
+  `purchasing:read`, `finance:read`). Trade amounts go to the company currency at each document's own rate;
+  treasury balances at the latest rate. Ranges are validated with `reportRange` (max two years).
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,
