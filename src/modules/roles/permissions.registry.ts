@@ -38,6 +38,11 @@ export const PERMISSION_REGISTRY = {
   finance: ['read', 'create', 'update', 'approve'],
   /** Leads, opportunities and activities; update also covers stage changes and conversions. */
   crm: ['read', 'create', 'update', 'delete'],
+  /**
+   * Own reports need no permission. read = every report, create = file for others,
+   * update = categories and closing others' reports, pay = reimburse and reverse payments.
+   */
+  expenses: ['read', 'create', 'update', 'pay'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

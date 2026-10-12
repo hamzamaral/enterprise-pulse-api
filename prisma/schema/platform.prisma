@@ -50,7 +50,8 @@ model FileObject {
   createdAt    DateTime  @default(now())
   deletedAt    DateTime?
 
-  company Company @relation(fields: [companyId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id])
+  expenseLines ExpenseLine[]
 
   @@index([companyId, entityType, entityId])
   @@map("files")

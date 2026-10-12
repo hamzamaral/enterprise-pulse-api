@@ -10,6 +10,8 @@ enum TreasuryDocumentType {
   PAYMENT
   CHEQUE_COLLECTION
   CHEQUE_PAYMENT
+  /// Reimbursement of an approved expense report.
+  EXPENSE_PAYMENT
 }
 
 enum PaymentDirection {
@@ -71,11 +73,12 @@ model TreasuryAccount {
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 
-  company      Company               @relation(fields: [companyId], references: [id])
-  transactions TreasuryTransaction[]
-  payments     PartnerPayment[]
-  cheques      Cheque[]
-  chequeEvents ChequeEvent[]
+  company        Company               @relation(fields: [companyId], references: [id])
+  transactions   TreasuryTransaction[]
+  payments       PartnerPayment[]
+  cheques        Cheque[]
+  chequeEvents   ChequeEvent[]
+  expenseReports ExpenseReport[]
 
   @@unique([companyId, code])
   @@map("treasury_accounts")

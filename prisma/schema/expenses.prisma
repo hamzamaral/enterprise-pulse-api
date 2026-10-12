@@ -1,0 +1,103 @@
+enum ExpenseCategoryKind {
+  /// Amount taken from a receipt.
+  RECEIPT
+  /// Harcırah: days × daily allowance.
+  PER_DIEM
+  /// Kilometres × rate per km.
+  MILEAGE
+}
+
+enum ExpenseReportStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+  CANCELLED
+}
+
+model ExpenseCategory {
+  id              String              @id @default(uuid()) @db.Uuid
+  companyId       String              @db.Uuid
+  code            String
+  name            String
+  kind            ExpenseCategoryKind @default(RECEIPT)
+  /// Daily allowance (PER_DIEM) or rate per km (MILEAGE) in the company currency.
+  rate            Decimal?            @db.Decimal(18, 2)
+  /// Soft limit per line in the company currency; lines above it are flagged for approvers.
+  limitAmount     Decimal?            @db.Decimal(18, 2)
+  /// RECEIPT lines must have a receipt attached before the report is submitted.
+  requiresReceipt Boolean             @default(true)
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id])
+  lines   ExpenseLine[]
+
+  @@unique([companyId, code])
+  @@map("expense_categories")
+}
+
+/// Masraf formu: an employee's expenses, approved through the EXPENSE_REPORT workflow and
+/// reimbursed from a cash / bank account.
+model ExpenseReport {
+  id                 String              @id @default(uuid()) @db.Uuid
+  companyId          String              @db.Uuid
+  number             String
+  employeeId         String              @db.Uuid
+  title              String
+  description        String?
+  status             ExpenseReportStatus @default(DRAFT)
+  /// Sum of the lines in the company currency.
+  totalAmount        Decimal             @default(0) @db.Decimal(18, 2)
+  workflowInstanceId String?             @db.Uuid
+  submittedAt        DateTime?
+  decidedAt          DateTime?
+  paymentAccountId   String?             @db.Uuid
+  paymentDate        DateTime?           @db.Date
+  paidAt             DateTime?
+  paidById           String?             @db.Uuid
+  createdById        String              @db.Uuid
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id])
+  employee       Employee         @relation(fields: [employeeId], references: [id])
+  paymentAccount TreasuryAccount? @relation(fields: [paymentAccountId], references: [id])
+  paidBy         User?            @relation("ExpenseReportPaidBy", fields: [paidById], references: [id])
+  createdBy      User             @relation("ExpenseReportCreatedBy", fields: [createdById], references: [id])
+  lines          ExpenseLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([employeeId])
+  @@map("expense_reports")
+}
+
+model ExpenseLine {
+  id            String   @id @default(uuid()) @db.Uuid
+  reportId      String   @db.Uuid
+  lineNo        Int
+  categoryId    String   @db.Uuid
+  expenseDate   DateTime @db.Date
+  description   String
+  merchant      String?
+  /// Days (PER_DIEM), kilometres (MILEAGE) or 1 (RECEIPT).
+  quantity      Decimal  @default(1) @db.Decimal(18, 2)
+  /// In `currencyCode`; VAT included.
+  amount        Decimal  @db.Decimal(18, 2)
+  vatAmount     Decimal  @default(0) @db.Decimal(18, 2)
+  currencyCode  String
+  exchangeRate  Decimal  @default(1) @db.Decimal(18, 6)
+  amountBase    Decimal  @db.Decimal(18, 2)
+  receiptFileId String?  @db.Uuid
+
+  report   ExpenseReport   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+  receipt  FileObject?     @relation(fields: [receiptFileId], references: [id])
+
+  @@unique([reportId, lineNo])
+  @@index([categoryId])
+  @@map("expense_lines")
+}

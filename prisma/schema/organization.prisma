@@ -74,6 +74,8 @@ model Company {
   leads               Lead[]
   opportunities       Opportunity[]
   crmActivities       CrmActivity[]
+  expenseCategories   ExpenseCategory[]
+  expenseReports      ExpenseReport[]
 
   @@map("companies")
 }

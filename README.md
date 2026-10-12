@@ -30,6 +30,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Ayarlar**                | Para birimi, döviz kuru, KDV oranları, birimler, belge numaralandırma serileri (`IZN-2026-000001`)                                                                                                                                                                                                                                   |
 | **Dosyalar**               | S3 uyumlu depolama (RustFS), imzalı indirme bağlantıları                                                                                                                                                                                                                                                                             |
 | **İnsan Kaynakları**       | Hiyerarşik departmanlar, pozisyonlar, personel kartı, organizasyon şeması, izin türleri ve kıdeme göre yıllık hak ediş, resmi tatil ve iş günü hesabı, onay akışlı izin talebi; vardiya tanımları (gece vardiyası dahil) ve haftalık plan, self-servis giriş-çıkış, geç kalma / devamsızlık / fazla mesai hesaplayan aylık puantaj   |
+| **Masraf ve Harcırah**     | Fişli masraf, günlük harcırah ve km ücretli araç kalemleriyle masraf formu, dövizli fiş (kayıt anındaki kurla), fiş görseli / PDF ekleme, kalem limiti ve fiş zorunluluğu uyarıları, onay akışı, onaylanan formu kasa / bankadan ödeme ve ters kayıtla geri alma, türe ve aya göre masraf özeti                                      |
 | **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu                                                                                    |
 | **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi                                                                                               |
 | **Cari hesaplar**          | Müşteri / tedarikçi kartları, vade ve kredi limiti, döviz; değişmez cari hareket defteri, iptalde ters kayıt                                                                                                                                                                                                                         |
@@ -39,7 +40,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Finans**                 | Kasa ve banka hesapları, tahsilat / ödeme ve faturalara otomatik (en eski vadeden) veya seçmeli kapama, müşteri çeki / senedi portföyü (bankaya verme, tahsil, ciro, karşılıksız), kendi çeklerimizin ödenmesi, yaşlandırma raporu ve nakit pozisyonu                                                                                |
 | **Raporlar**               | Satış ve alış analizi (aylık, cari veya ürün bazında; şirket para biriminde, iadeler düşülmüş), açılış bakiyeli ve ters kayıtları ayıklayan aylık nakit akışı                                                                                                                                                                        |
 
-Sıradaki fazlar: bordro, masraf, proje yönetimi ve canlı demo
+Sıradaki fazlar: proje yönetimi, bordro ve canlı demo
 ([yol haritası](https://github.com/hamzamaral/EnterprisePulse/blob/main/docs/roadmap.md)).
 
 ## Mimari ve teknik kararlar
@@ -80,6 +81,10 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   içinde saf fonksiyonlardır. Satış modülü fırsata yalnızca `OpportunitiesService` üzerinden, teklifi oluşturan
   transaction içinde dokunur; farklı para birimindeki fırsatlar pano ve göstergelerde güncel kurla şirket para
   birimine çevrilir.
+- **Masraf formları:** Kalem tutarı `expenses/expense-math.ts` içinde hesaplanır: fişli kalemler kayıt anındaki
+  kurla şirket para birimine çevrilir, harcırah ve km kalemleri türün birim ücretiyle çarpılır. Personel
+  yalnızca kendi formlarını görür (izin gerekmez); onay bitince form `expenses:pay` izinlilere bildirilir,
+  ödeme kasa / banka defterine `EXPENSE_PAYMENT` olarak yazılır ve geri alındığında ters kayıt atılır.
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -131,9 +136,10 @@ pnpm start:dev        # http://localhost:3000/api/v1
 ## Testler ve CI
 
 - **Birim testleri (Jest):** iş günü ve izin hesabı, puantaj (geç kalma, fazla mesai, gece vardiyası, saat dilimi),
-  amortisman, stok matematiği, CRM aşama kuralları, numaralandırma gibi saf iş kuralları.
+  amortisman, stok matematiği, CRM aşama kuralları, masraf kalemi hesabı, numaralandırma gibi saf iş kuralları.
 - **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları,
-  CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma) gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
+  CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma), masraf formu (onay, ödeme, ters kayıt, gizlilik)
+  gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
   kritik stok bildirimi dahil.
 - **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed
   otomatik uygulanır), demo verisi kirlenmez. `E2E_RESET=1 pnpm test:e2e` test veritabanını sıfırdan kurar.
