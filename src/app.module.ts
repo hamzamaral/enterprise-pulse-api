@@ -30,6 +30,7 @@ import { NumberingModule } from './modules/numbering/numbering.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PartnersModule } from './modules/partners/partners.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SettingsModule } from './modules/settings/settings.module';
@@ -82,6 +83,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     PurchasingModule,
     SalesModule,
     FinanceModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

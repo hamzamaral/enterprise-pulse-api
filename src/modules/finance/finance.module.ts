@@ -21,5 +21,6 @@ import { TreasuryService } from './treasury.service';
     FinanceReportsController,
   ],
   providers: [TreasuryService, PaymentsService, ChequesService, FinanceReportsService],
+  exports: [TreasuryService],
 })
 export class FinanceModule {}
