@@ -93,6 +93,18 @@ describe('Sales (e2e)', () => {
   });
 
   it('runs quote → order → reservation → delivery → invoice → return', async () => {
+    // Each run leaves one keyboard reserved on its partially delivered order.
+    const stocked = await item('PRD-KLAVYE-F');
+    if (Number(stocked.available) < 2) {
+      await api('admin')
+        .post('/stock-movements', {
+          type: 'RECEIPT',
+          movementDate: today(),
+          targetWarehouseId: warehouseId,
+          lines: [{ variantId: stocked.variantId, quantity: 10, unitCost: 900 }],
+        })
+        .expect(201);
+    }
     const keyboard = await item('PRD-KLAVYE-F');
     const setup = await item('SRV-KURULUM');
     const partnerId = await customer('MUS-003');
