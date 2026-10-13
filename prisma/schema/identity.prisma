@@ -69,6 +69,11 @@ model User {
   createdJobOffers      JobOffer[]            @relation("JobOfferCreatedBy")
   createdReviewCycles   ReviewCycle[]         @relation("ReviewCycleCreatedBy")
   createdTrainings      TrainingSession[]     @relation("TrainingSessionCreatedBy")
+  ticketCategories      TicketCategory[]      @relation("TicketCategoryDefaultAssignee")
+  requestedTickets      Ticket[]              @relation("TicketRequester")
+  assignedTickets       Ticket[]              @relation("TicketAssignee")
+  ticketComments        TicketComment[]       @relation("TicketCommentAuthor")
+  ticketEvents          TicketEvent[]         @relation("TicketEventActor")
 
   @@map("users")
 }

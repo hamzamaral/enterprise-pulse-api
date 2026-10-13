@@ -28,6 +28,7 @@ import { seedPerformance } from './seed-performance';
 import { seedProjects } from './seed-projects';
 import { seedRecruitment } from './seed-recruitment';
 import { seedSales } from './seed-sales';
+import { seedSupport } from './seed-support';
 import { seedPartners, seedPurchasing } from './seed-trade';
 import { seedTraining } from './seed-training';
 
@@ -76,6 +77,8 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'projects:create',
       'recruitment:read',
       'training:read',
+      'support:read',
+      'support:update',
     ],
   },
   employee: {
@@ -220,6 +223,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['PROJECT', 'Proje', 'PRJ'],
     ['PAYROLL', 'Bordro', 'BRD'],
     ['JOB_POSTING', 'İş İlanı', 'ILN'],
+    ['TICKET', 'Destek Talebi', 'TKT'],
   ];
   for (const [seqCode, seqName, prefix, yearly = true] of sequences) {
     await prisma.numberSequence.upsert({
@@ -1337,6 +1341,9 @@ async function main() {
 
   console.log('Seeding training...');
   await seedTraining(prisma, { companyId: pulse.id, adminId: admin.id });
+
+  console.log('Seeding support...');
+  await seedSupport(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
 
   console.log('Seed completed.');
 }

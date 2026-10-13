@@ -74,6 +74,13 @@ export const PERMISSION_REGISTRY = {
    * enrollments; update also records attendance.
    */
   training: ['read', 'create', 'update', 'delete'],
+  /**
+   * Everyone opens tickets and follows their own requests without a permission. read = the queue,
+   * every ticket and internal notes; create = open tickets on behalf of others; update = work
+   * tickets (assign, status, priority, internal notes), categories and SLA targets; delete = remove
+   * tickets.
+   */
+  support: ['read', 'create', 'update', 'delete'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

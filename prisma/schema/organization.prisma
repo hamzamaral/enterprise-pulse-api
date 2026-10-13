@@ -91,6 +91,9 @@ model Company {
   performanceReviews  PerformanceReview[]
   trainingCourses     TrainingCourse[]
   trainingSessions    TrainingSession[]
+  ticketCategories    TicketCategory[]
+  ticketSlaPolicies   TicketSlaPolicy[]
+  tickets             Ticket[]
   timeEntries         TimeEntry[]
 
   @@map("companies")
