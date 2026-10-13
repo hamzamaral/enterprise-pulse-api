@@ -19,6 +19,7 @@ import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
+import { seedContracts } from './seed-contracts';
 import { seedCrm } from './seed-crm';
 import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
@@ -79,6 +80,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'training:read',
       'support:read',
       'support:update',
+      'contracts:read',
     ],
   },
   employee: {
@@ -224,6 +226,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['PAYROLL', 'Bordro', 'BRD'],
     ['JOB_POSTING', 'İş İlanı', 'ILN'],
     ['TICKET', 'Destek Talebi', 'TKT'],
+    ['CONTRACT', 'Sözleşme', 'SZL'],
   ];
   for (const [seqCode, seqName, prefix, yearly = true] of sequences) {
     await prisma.numberSequence.upsert({
@@ -1344,6 +1347,9 @@ async function main() {
 
   console.log('Seeding support...');
   await seedSupport(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
+
+  console.log('Seeding contracts...');
+  await seedContracts(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
 
   console.log('Seed completed.');
 }

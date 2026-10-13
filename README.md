@@ -35,6 +35,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **İşe Alım**               | İş ilanları (taslak, yayında, beklemede, kapalı; kadro, ücret aralığı, işe alım yöneticisi), aday havuzu ve CV dosyası, sürükle-bırak başvuru hattı, mülakat planlama ve mülakatçı değerlendirmesi, teklif (kabul / ret / geri çekme), adayı tek işlemde personele ve ilk ücret kaydına dönüştürme, işe alım hunisi                                                                                                                       |
 | **Performans ve Eğitim**   | Yetkinlik kataloğu, hedef / yetkinlik ağırlıklı değerlendirme dönemleri, dönemi başlatınca personel başına form ve yönetici ataması, hedef girişi, öz değerlendirme, yönetici değerlendirmesi ve puan hesabı, geri gönderme, çalışan onayı, puan dağılımı; eğitim kataloğu (zorunlu eğitim, sertifika geçerliliği), kontenjanlı oturum, toplu ve self-servis kayıt, katılım ve sınav puanı, memnuniyet anketi, zorunlu eğitim uyum raporu |
 | **Destek Talepleri**       | Self-servis destek talebi, kategoriye göre otomatik atama, öncelik bazlı SLA hedefleri (ilk yanıt ve çözüm), bilgi beklenirken duran çözüm saati, yanıt ve dahili not, dosya eki, durum geçmişi, çözüm onayı / yeniden açma, memnuniyet puanı, kuyruk filtreleri (bana atanan, atanmamış, SLA aşılan), ekip iş yükü ve 14 günlük trend                                                                                                    |
+| **Sözleşmeler**            | Cari ve personel sözleşmeleri, gelir / gider yönlü sözleşme türleri ve varsayılan süreler, taslak → yürürlükte → sona erdi / feshedildi yaşam döngüsü, otomatik yenileme ve ihbar süresi, manuel yenileme, ileri tarihli fesih ve geri alma, bitiş / fesih son günü hatırlatması (bildirim ve e-posta), günlük zamanlanmış iş, imzalı sözleşme ekleri, olay geçmişi, yıllık gelir / gider değeri ve 12 aylık bitiş takvimi                |
 | **Proje Yönetimi**         | Müşteriye bağlı projeler, rol ve saatlik maliyetli proje ekibi, sürükle-bırak görev panosu (öncelik, sorumlu, termin, tahmini süre), haftalık zaman çizelgesi, işçilik ve projeye yansıtılan masraflarla bütçe takibi, geciken ve bütçesi aşan proje göstergeleri                                                                                                                                                                         |
 | **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu                                                                                                                                                                                         |
 | **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi                                                                                                                                                                                                    |
@@ -123,6 +124,13 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   hedefleri açılış zamanından yeniden hesaplanır. SLA durumu (`ON_TRACK`, `AT_RISK`, `BREACHED`, `MET`,
   `PAUSED`) `support/support-math.ts` içindedir. Dahili notları yalnızca destek ekibi görür; talep
   sahibi çözümü onaylayıp puanlar veya yeniden açar, yanıtsız talebi geri çekerse yanıt / çözüm sayılmaz.
+- **Sözleşme yaşam döngüsü:** Tarih kuralları (`contracts/contract-math.ts`) saf fonksiyonlardır: otomatik
+  yenilenen sözleşmede karar tarihi fesih son günüdür (bitiş − ihbar süresi), diğerlerinde bitiş tarihidir;
+  hatırlatma bu tarihten `reminderDays` gün önce dönem başına bir kez gider. BullMQ `contracts` kuyruğundaki
+  günlük iş (07:00, Europe/Istanbul) her yürürlükteki sözleşmeyi satır kilidiyle işler: tarihi gelen feshi
+  uygular, süresi dolanı `EXPIRED` yapar veya bugüne yetişene kadar dönem dönem yeniler, sonra hatırlatmayı
+  gönderir. Sözleşmeyi `contracts:read` izinliler ve sorumlusu görür; yürürlükteki sözleşmenin tarihleri
+  yalnızca yenileme ve fesihle değişir.
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -177,7 +185,7 @@ pnpm start:dev        # http://localhost:3000/api/v1
   amortisman, stok matematiği, CRM aşama kuralları, masraf kalemi hesabı, proje ilerlemesi ve bütçe kullanımı, bordro
   hesabı (SGK tavanı, vergi dilimi geçişi, asgari ücret istisnası), işe alım hunisi ve mülakat puanı,
   performans puanı ve dağılımı, sertifika geçerliliği ve uyum oranı, SLA hedefi ve durumu,
-  numaralandırma gibi saf iş kuralları.
+  sözleşme dönemi, otomatik yenileme ve hatırlatma tarihi, yıllık sözleşme değeri, numaralandırma gibi saf iş kuralları.
 - **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları,
   CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma), masraf formu (onay, ödeme, ters kayıt, gizlilik),
   proje yönetimi (ekip yetkisi, görev panosu, haftalık zaman çizelgesi, projeye masraf yansıtma),
@@ -185,7 +193,8 @@ pnpm start:dev        # http://localhost:3000/api/v1
   işe alım (mülakatçı yetkisi, değerlendirme, teklif, adayı personele dönüştürme, ret ve yeniden açma),
   performans (form görünürlüğü, hedef ağırlığı, geri gönderme, puan hesabı, onay, yeniden açma),
   eğitim (kontenjan, self-servis kayıt, katılım, sertifika süresi, geri bildirim, uyum raporu),
-  destek (talep görünürlüğü, dahili not, SLA duraklatma, öncelik değişimi, yeniden açma, puanlama, ekler)
+  destek (talep görünürlüğü, dahili not, SLA duraklatma, öncelik değişimi, yeniden açma, puanlama, ekler),
+  sözleşmeler (sorumlu yetkisi, taraf ve süre kuralları, yürürlüğe alma, yenileme, fesih, günlük iş, ekler)
   gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
   kritik stok bildirimi dahil.
 - **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed

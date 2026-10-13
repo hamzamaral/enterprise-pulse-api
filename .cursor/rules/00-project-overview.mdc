@@ -107,6 +107,13 @@ prisma/migrations/       committed migrations, never edited after merge
   internal notes, status / priority / category changes). Status changes go through `statusChange()`,
   which pauses the resolution clock in `WAITING` and pushes `resolutionDueAt` back on resume. Changes run
   under a ticket row lock; attachments are `files` rows with `entityType = 'Ticket'`.
+- Contracts (`modules/contracts`, permission `contracts:*`): date rules live in `contracts/contract-math.ts`
+  (`actionDate`, `settle`, `reminderDue`, `annualValue`). `GET /contracts/:id` is open to `contracts:read`
+  holders and the owner (others get 404); owners must hold `contracts:read`. Only `DRAFT` / `ACTIVE`
+  contracts are editable and dates of an `ACTIVE` one change only via renew / terminate. The daily BullMQ
+  job (`contracts.processor.ts`, skipped under `NODE_ENV=test`) calls `runAll()`; `POST /contracts/run`
+  runs it for the active company. Each contract is processed under a row lock (`lockContract`);
+  events written in one transaction get explicit `createdAt` offsets to keep their order.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,

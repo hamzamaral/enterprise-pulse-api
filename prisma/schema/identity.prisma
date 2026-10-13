@@ -74,6 +74,9 @@ model User {
   assignedTickets       Ticket[]              @relation("TicketAssignee")
   ticketComments        TicketComment[]       @relation("TicketCommentAuthor")
   ticketEvents          TicketEvent[]         @relation("TicketEventActor")
+  ownedContracts        Contract[]            @relation("ContractOwner")
+  createdContracts      Contract[]            @relation("ContractCreatedBy")
+  contractEvents        ContractEvent[]       @relation("ContractEventActor")
 
   @@map("users")
 }

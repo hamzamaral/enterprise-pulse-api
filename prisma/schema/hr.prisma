@@ -127,6 +127,7 @@ model Employee {
   performanceReviews PerformanceReview[]    @relation("PerformanceReviewEmployee")
   reviewsToGive      PerformanceReview[]    @relation("PerformanceReviewReviewer")
   trainings          TrainingEnrollment[]   @relation("TrainingEnrollmentEmployee")
+  contracts          Contract[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

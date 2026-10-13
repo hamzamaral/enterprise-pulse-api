@@ -81,6 +81,12 @@ export const PERMISSION_REGISTRY = {
    * tickets.
    */
   support: ['read', 'create', 'update', 'delete'],
+  /**
+   * read = every contract, the dashboard and owning contracts; create = new drafts; update = edit,
+   * activate, renew, terminate, attachments, contract types and running the reminder job;
+   * delete = remove drafts.
+   */
+  contracts: ['read', 'create', 'update', 'delete'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

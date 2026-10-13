@@ -4,6 +4,8 @@ import { AppConfigService } from '../../config/app-config.service';
 
 export const QUEUES = {
   MAIL: 'mail',
+  /** Daily contract renewals, expiries and reminders. */
+  CONTRACTS: 'contracts',
 } as const;
 
 @Global()
@@ -28,7 +30,7 @@ export const QUEUES = {
         };
       },
     }),
-    BullModule.registerQueue({ name: QUEUES.MAIL }),
+    BullModule.registerQueue({ name: QUEUES.MAIL }, { name: QUEUES.CONTRACTS }),
   ],
   exports: [BullModule],
 })

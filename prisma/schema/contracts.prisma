@@ -1,0 +1,136 @@
+/// Who the contract is signed with.
+enum ContractParty {
+  /// A customer or supplier account (cari).
+  PARTNER
+  EMPLOYEE
+}
+
+/// Direction of the money; drives the income / expense totals.
+enum ContractFlow {
+  INCOME
+  EXPENSE
+  NONE
+}
+
+enum ContractStatus {
+  DRAFT
+  ACTIVE
+  /// Ended without renewal.
+  EXPIRED
+  /// Ended early; `terminatedOn` is the last day.
+  TERMINATED
+}
+
+enum ContractBillingCycle {
+  ONE_TIME
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ContractEventType {
+  CREATED
+  UPDATED
+  ACTIVATED
+  RENEWED
+  AUTO_RENEWED
+  TERMINATION_SCHEDULED
+  TERMINATION_CANCELLED
+  TERMINATED
+  EXPIRED
+  REMINDER_SENT
+}
+
+/// Sözleşme türü, e.g. hizmet, kira, bakım, iş sözleşmesi, gizlilik.
+model ContractType {
+  id                String        @id @default(uuid()) @db.Uuid
+  companyId         String        @db.Uuid
+  name              String
+  party             ContractParty
+  flow              ContractFlow  @default(NONE)
+  /// Suggested term for new contracts and renewals; null = open-ended.
+  defaultTermMonths Int?
+  defaultNoticeDays Int           @default(30)
+  description       String?
+  isActive          Boolean       @default(true)
+  sortOrder         Int           @default(0)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id])
+  contracts Contract[]
+
+  @@unique([companyId, name])
+  @@map("contract_types")
+}
+
+/// Sözleşme with a partner or an employee; renewals extend the same record.
+model Contract {
+  id                String               @id @default(uuid()) @db.Uuid
+  companyId         String               @db.Uuid
+  number            String
+  title             String
+  typeId            String               @db.Uuid
+  party             ContractParty
+  partnerId         String?              @db.Uuid
+  employeeId        String?              @db.Uuid
+  /// Responsible user; receives the reminders.
+  ownerId           String               @db.Uuid
+  startDate         DateTime             @db.Date
+  /// Last day of the current term; null = open-ended.
+  endDate           DateTime?            @db.Date
+  signedDate        DateTime?            @db.Date
+  amount            Decimal?             @db.Decimal(18, 2)
+  currencyCode      String               @default("TRY")
+  billingCycle      ContractBillingCycle @default(ONE_TIME)
+  /// Renews for `renewalMonths` at the end of the term unless cancelled in time.
+  autoRenew         Boolean              @default(false)
+  renewalMonths     Int?
+  /// Cancellation notice required before the end of the term.
+  noticeDays        Int                  @default(30)
+  /// Remind the owner this many days before the end (or the notice deadline).
+  reminderDays      Int                  @default(30)
+  status            ContractStatus       @default(DRAFT)
+  renewalCount      Int                  @default(0)
+  description       String?
+  terminatedOn      DateTime?            @db.Date
+  terminationReason String?
+  /// The end date the last reminder was sent for, so each term is reminded once.
+  remindedFor       DateTime?            @db.Date
+  activatedAt       DateTime?
+  createdById       String               @db.Uuid
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  company   Company          @relation(fields: [companyId], references: [id])
+  type      ContractType     @relation(fields: [typeId], references: [id])
+  partner   BusinessPartner? @relation(fields: [partnerId], references: [id])
+  employee  Employee?        @relation(fields: [employeeId], references: [id])
+  owner     User             @relation("ContractOwner", fields: [ownerId], references: [id])
+  createdBy User             @relation("ContractCreatedBy", fields: [createdById], references: [id])
+  events    ContractEvent[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status, endDate])
+  @@index([partnerId])
+  @@index([employeeId])
+  @@map("contracts")
+}
+
+model ContractEvent {
+  id         String            @id @default(uuid()) @db.Uuid
+  contractId String            @db.Uuid
+  /// null for the daily job.
+  actorId    String?           @db.Uuid
+  type       ContractEventType
+  fromValue  String?
+  toValue    String?
+  note       String?
+  createdAt  DateTime          @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  actor    User?    @relation("ContractEventActor", fields: [actorId], references: [id])
+
+  @@index([contractId, createdAt])
+  @@map("contract_events")
+}

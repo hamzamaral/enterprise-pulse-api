@@ -94,6 +94,8 @@ model Company {
   ticketCategories    TicketCategory[]
   ticketSlaPolicies   TicketSlaPolicy[]
   tickets             Ticket[]
+  contractTypes       ContractType[]
+  contracts           Contract[]
   timeEntries         TimeEntry[]
 
   @@map("companies")
