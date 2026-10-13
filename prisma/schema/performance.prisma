@@ -1,0 +1,145 @@
+enum ReviewCycleStatus {
+  /// Being prepared; no reviews exist yet.
+  DRAFT
+  /// Reviews are open.
+  ACTIVE
+  /// Locked; results are final.
+  CLOSED
+}
+
+enum PerformanceReviewStatus {
+  /// The employee sets goals and rates themselves.
+  SELF_REVIEW
+  /// The reviewer rates goals and competencies.
+  MANAGER_REVIEW
+  COMPLETED
+}
+
+/// Yetkinlik: a behaviour rated in every review of a cycle that uses it.
+model Competency {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company                 @relation(fields: [companyId], references: [id])
+  cycles  ReviewCycleCompetency[]
+  ratings CompetencyRating[]
+
+  @@unique([companyId, name])
+  @@map("competencies")
+}
+
+/// Değerlendirme dönemi: launching it opens a review for every active employee.
+model ReviewCycle {
+  id               String            @id @default(uuid()) @db.Uuid
+  companyId        String            @db.Uuid
+  name             String
+  periodStart      DateTime          @db.Date
+  periodEnd        DateTime          @db.Date
+  selfReviewDue    DateTime          @db.Date
+  managerReviewDue DateTime          @db.Date
+  /// Share of goals in the overall score (0-100); competencies make up the rest.
+  goalWeight       Int               @default(60)
+  status           ReviewCycleStatus @default(DRAFT)
+  launchedAt       DateTime?
+  closedAt         DateTime?
+  createdById      String            @db.Uuid
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  company      Company                 @relation(fields: [companyId], references: [id])
+  createdBy    User                    @relation("ReviewCycleCreatedBy", fields: [createdById], references: [id])
+  competencies ReviewCycleCompetency[]
+  reviews      PerformanceReview[]
+
+  @@index([companyId, status])
+  @@map("review_cycles")
+}
+
+model ReviewCycleCompetency {
+  cycleId      String @db.Uuid
+  competencyId String @db.Uuid
+
+  cycle      ReviewCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  competency Competency  @relation(fields: [competencyId], references: [id])
+
+  @@id([cycleId, competencyId])
+  @@map("review_cycle_competencies")
+}
+
+/// One employee's review in a cycle; scores are 1-5 with two decimals.
+model PerformanceReview {
+  id                 String                  @id @default(uuid()) @db.Uuid
+  companyId          String                  @db.Uuid
+  cycleId            String                  @db.Uuid
+  employeeId         String                  @db.Uuid
+  /// The employee's manager when the cycle was launched.
+  reviewerId         String?                 @db.Uuid
+  status             PerformanceReviewStatus @default(SELF_REVIEW)
+  selfComment        String?
+  managerComment     String?
+  strengths          String?
+  improvements       String?
+  goalScore          Decimal?                @db.Decimal(4, 2)
+  competencyScore    Decimal?                @db.Decimal(4, 2)
+  overallScore       Decimal?                @db.Decimal(4, 2)
+  selfSubmittedAt    DateTime?
+  managerSubmittedAt DateTime?
+  acknowledgedAt     DateTime?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  company  Company            @relation(fields: [companyId], references: [id])
+  cycle    ReviewCycle        @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee Employee           @relation("PerformanceReviewEmployee", fields: [employeeId], references: [id])
+  reviewer Employee?          @relation("PerformanceReviewReviewer", fields: [reviewerId], references: [id])
+  goals    PerformanceGoal[]
+  ratings  CompetencyRating[]
+
+  @@unique([cycleId, employeeId])
+  @@index([companyId, status])
+  @@index([reviewerId])
+  @@index([employeeId])
+  @@map("performance_reviews")
+}
+
+/// Hedef: the weights of a review's goals add up to 100.
+model PerformanceGoal {
+  id            String   @id @default(uuid()) @db.Uuid
+  reviewId      String   @db.Uuid
+  title         String
+  description   String?
+  weight        Int
+  /// Completion in percent, kept by the employee.
+  progress      Int      @default(0)
+  selfRating    Int?
+  managerRating Int?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  review PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId])
+  @@map("performance_goals")
+}
+
+model CompetencyRating {
+  id            String  @id @default(uuid()) @db.Uuid
+  reviewId      String  @db.Uuid
+  competencyId  String  @db.Uuid
+  selfRating    Int?
+  managerRating Int?
+  comment       String?
+
+  review     PerformanceReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  competency Competency        @relation(fields: [competencyId], references: [id])
+
+  @@unique([reviewId, competencyId])
+  @@map("competency_ratings")
+}

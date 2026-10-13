@@ -124,6 +124,9 @@ model Employee {
   referredCandidates Candidate[]            @relation("CandidateReferredBy")
   hiredFrom          JobApplication?        @relation("JobApplicationEmployee")
   interviews         InterviewParticipant[] @relation("InterviewParticipantEmployee")
+  performanceReviews PerformanceReview[]    @relation("PerformanceReviewEmployee")
+  reviewsToGive      PerformanceReview[]    @relation("PerformanceReviewReviewer")
+  trainings          TrainingEnrollment[]   @relation("TrainingEnrollmentEmployee")
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

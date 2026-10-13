@@ -67,6 +67,8 @@ model User {
   applicationActivities ApplicationActivity[] @relation("ApplicationActivityCreatedBy")
   createdInterviews     Interview[]           @relation("InterviewCreatedBy")
   createdJobOffers      JobOffer[]            @relation("JobOfferCreatedBy")
+  createdReviewCycles   ReviewCycle[]         @relation("ReviewCycleCreatedBy")
+  createdTrainings      TrainingSession[]     @relation("TrainingSessionCreatedBy")
 
   @@map("users")
 }

@@ -1,0 +1,109 @@
+enum TrainingCategory {
+  TECHNICAL
+  SOFT_SKILLS
+  LEADERSHIP
+  /// KVKK, ethics and other legal obligations.
+  COMPLIANCE
+  /// İş sağlığı ve güvenliği.
+  OCCUPATIONAL_SAFETY
+  ORIENTATION
+}
+
+enum TrainingFormat {
+  CLASSROOM
+  ONLINE
+  BLENDED
+}
+
+enum TrainingSessionStatus {
+  PLANNED
+  /// Attendance recorded.
+  COMPLETED
+  CANCELLED
+}
+
+enum TrainingEnrollmentStatus {
+  ENROLLED
+  ATTENDED
+  NO_SHOW
+  CANCELLED
+}
+
+/// Eğitim kataloğu: mandatory courses are tracked for every active employee.
+model TrainingCourse {
+  id             String           @id @default(uuid()) @db.Uuid
+  companyId      String           @db.Uuid
+  code           String
+  title          String
+  category       TrainingCategory
+  format         TrainingFormat   @default(CLASSROOM)
+  durationHours  Decimal          @db.Decimal(6, 1)
+  provider       String?
+  description    String?
+  isMandatory    Boolean          @default(false)
+  /// Certificates expire this many months after the session; null = never.
+  validityMonths Int?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id])
+  sessions TrainingSession[]
+
+  @@unique([companyId, code])
+  @@map("training_courses")
+}
+
+/// Eğitim oturumu: a scheduled run of a course.
+model TrainingSession {
+  id             String                @id @default(uuid()) @db.Uuid
+  companyId      String                @db.Uuid
+  courseId       String                @db.Uuid
+  startsAt       DateTime
+  endsAt         DateTime
+  location       String?
+  instructor     String?
+  capacity       Int?
+  /// Total cost in the company currency.
+  cost           Decimal?              @db.Decimal(18, 2)
+  /// Employees may enroll themselves while seats are left.
+  selfEnrollment Boolean               @default(false)
+  status         TrainingSessionStatus @default(PLANNED)
+  notes          String?
+  completedAt    DateTime?
+  createdById    String                @db.Uuid
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  company     Company              @relation(fields: [companyId], references: [id])
+  course      TrainingCourse       @relation(fields: [courseId], references: [id])
+  createdBy   User                 @relation("TrainingSessionCreatedBy", fields: [createdById], references: [id])
+  enrollments TrainingEnrollment[]
+
+  @@index([companyId, startsAt])
+  @@index([courseId])
+  @@map("training_sessions")
+}
+
+model TrainingEnrollment {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  sessionId            String                   @db.Uuid
+  employeeId           String                   @db.Uuid
+  status               TrainingEnrollmentStatus @default(ENROLLED)
+  /// Exam or assessment result, 0-100.
+  score                Int?
+  certificateExpiresAt DateTime?                @db.Date
+  /// The participant's rating of the session, 1-5.
+  feedbackRating       Int?
+  feedbackComment      String?
+  feedbackAt           DateTime?
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+
+  session  TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  employee Employee        @relation("TrainingEnrollmentEmployee", fields: [employeeId], references: [id])
+
+  @@unique([sessionId, employeeId])
+  @@index([employeeId])
+  @@map("training_enrollments")
+}

@@ -24,10 +24,12 @@ import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
 import { seedInventory } from './seed-inventory';
 import { seedPayroll } from './seed-payroll';
+import { seedPerformance } from './seed-performance';
 import { seedProjects } from './seed-projects';
 import { seedRecruitment } from './seed-recruitment';
 import { seedSales } from './seed-sales';
 import { seedPartners, seedPurchasing } from './seed-trade';
+import { seedTraining } from './seed-training';
 
 const prisma = new PrismaClient();
 const YEAR = new Date().getFullYear();
@@ -73,6 +75,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'projects:read',
       'projects:create',
       'recruitment:read',
+      'training:read',
     ],
   },
   employee: {
@@ -1328,6 +1331,12 @@ async function main() {
 
   console.log('Seeding recruitment...');
   await seedRecruitment(prisma, { companyId: pulse.id, adminId: admin.id, branchId: hq.id });
+
+  console.log('Seeding performance...');
+  await seedPerformance(prisma, { companyId: pulse.id, adminId: admin.id });
+
+  console.log('Seeding training...');
+  await seedTraining(prisma, { companyId: pulse.id, adminId: admin.id });
 
   console.log('Seed completed.');
 }

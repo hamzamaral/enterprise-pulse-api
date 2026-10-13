@@ -86,6 +86,11 @@ model Company {
   jobApplications     JobApplication[]
   interviews          Interview[]
   jobOffers           JobOffer[]
+  competencies        Competency[]
+  reviewCycles        ReviewCycle[]
+  performanceReviews  PerformanceReview[]
+  trainingCourses     TrainingCourse[]
+  trainingSessions    TrainingSession[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

@@ -62,6 +62,18 @@ export const PERMISSION_REGISTRY = {
    * hire = turn a candidate with an accepted offer into an employee.
    */
   recruitment: ['read', 'create', 'update', 'delete', 'hire'],
+  /**
+   * Employees fill in their own reviews and managers review their direct reports without a
+   * permission. read = cycles, competencies and every review; create / update / delete = cycles and
+   * competencies; update also lets HR act as the reviewer and reopen completed reviews.
+   */
+  performance: ['read', 'create', 'update', 'delete'],
+  /**
+   * Employees see their own trainings, enroll in open sessions and rate them without a permission.
+   * read = catalog, sessions and compliance; create / update / delete = courses, sessions and
+   * enrollments; update also records attendance.
+   */
+  training: ['read', 'create', 'update', 'delete'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;
