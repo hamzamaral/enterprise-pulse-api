@@ -4,6 +4,7 @@ import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
 import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
+import { StorageService } from '../src/infrastructure/storage/storage.service';
 
 const USERS = {
   admin: { email: 'admin@enterprisepulse.dev', password: 'Admin123!' },
@@ -53,6 +54,8 @@ describe('Support (e2e)', () => {
   const ids = { admin: '', manager: '', employee: '' };
   let companyId = '';
   let categoryId = '';
+  /** In-memory object storage; the suite does not depend on a running S3 endpoint. */
+  const objects = new Map<string, Buffer>();
 
   const api = (role: keyof typeof tokens) => {
     const auth = `Bearer ${tokens[role]}`;
@@ -90,7 +93,16 @@ describe('Support (e2e)', () => {
     (await api(role).post('/tickets', body).expect(201)).body as Ticket;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+    const storage: Partial<StorageService> = {
+      onModuleInit: () => Promise.resolve(),
+      upload: (key, body) => Promise.resolve(void objects.set(key, body)),
+      getDownloadUrl: (key) => Promise.resolve(`https://storage.test/${key}`),
+      delete: (key) => Promise.resolve(void objects.delete(key)),
+    };
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(StorageService)
+      .useValue(storage)
+      .compile();
     app = moduleRef.createNestApplication<NestExpressApplication>();
     configureApp(app);
     await app.init();
@@ -351,12 +363,14 @@ describe('Support (e2e)', () => {
     expect(withFile.attachments).toHaveLength(1);
     const [file] = withFile.attachments;
     expect(file).toMatchObject({ originalName: 'hata.txt', canDelete: true });
+    expect(objects.size).toBe(1);
     await api('employee').get(`/tickets/${ticket.id}/attachments/${file.id}/url`).expect(200);
     await api('manager').get(`/tickets/${ticket.id}/attachments/${file.id}/url`).expect(200);
     const without = (
       await api('manager').delete(`/tickets/${ticket.id}/attachments/${file.id}`).expect(200)
     ).body as Ticket;
     expect(without.attachments).toHaveLength(0);
+    expect(objects.size).toBe(0);
   });
 
   it('validates SLA policies', async () => {
