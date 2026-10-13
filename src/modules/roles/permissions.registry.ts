@@ -49,6 +49,12 @@ export const PERMISSION_REGISTRY = {
    * delete = remove projects that have no logged time.
    */
   projects: ['read', 'create', 'update', 'delete'],
+  /**
+   * Own payslips need no permission. read = periods, payslips and salaries; create = open,
+   * recalculate and edit draft periods; update = salaries and yearly parameters;
+   * approve = approve and reopen periods; pay = pay and reverse net salaries.
+   */
+  payroll: ['read', 'create', 'update', 'approve', 'pay'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

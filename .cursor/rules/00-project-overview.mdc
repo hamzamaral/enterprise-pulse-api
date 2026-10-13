@@ -76,6 +76,13 @@ prisma/migrations/       committed migrations, never edited after merge
   time (`projects/project-math.ts`); task numbers and board order are assigned under a project row lock.
   Expenses charge projects only through `ProjectsService.assertChargeable` / `addExpenseCost` (approve adds,
   cancelling an approved report subtracts); projects never import the expenses module.
+- Payroll (`modules/payroll`, permission `payroll:*`): all amounts come from `payroll/payroll-math.ts` (30-day
+  basis, cumulative income tax, minimum wage exemptions); rates live per company and year in
+  `PayrollParameter` (fractions in the DB, percentages in the API). Periods go `DRAFT → APPROVED → PAID`, one
+  draft at a time, created in month order under a company row lock; `imported` periods are history without a
+  treasury entry. Payment posts one `PAYROLL_PAYMENT` for the net total, reversal books it back. Salary
+  records dated in a month with a non-draft period are rejected. Employees see their own payslips without a
+  permission once the period is approved; drafts read absences and overtime from `AttendanceService`.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,

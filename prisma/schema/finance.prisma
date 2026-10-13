@@ -12,6 +12,8 @@ enum TreasuryDocumentType {
   CHEQUE_PAYMENT
   /// Reimbursement of an approved expense report.
   EXPENSE_PAYMENT
+  /// Net salaries of an approved payroll period.
+  PAYROLL_PAYMENT
 }
 
 enum PaymentDirection {
@@ -79,6 +81,7 @@ model TreasuryAccount {
   cheques        Cheque[]
   chequeEvents   ChequeEvent[]
   expenseReports ExpenseReport[]
+  payrollPeriods PayrollPeriod[]
 
   @@unique([companyId, code])
   @@map("treasury_accounts")

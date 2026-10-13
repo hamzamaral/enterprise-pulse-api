@@ -23,6 +23,7 @@ import { seedCrm } from './seed-crm';
 import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
 import { seedInventory } from './seed-inventory';
+import { seedPayroll } from './seed-payroll';
 import { seedProjects } from './seed-projects';
 import { seedSales } from './seed-sales';
 import { seedPartners, seedPurchasing } from './seed-trade';
@@ -212,6 +213,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['OPPORTUNITY', 'Satış Fırsatı', 'FRS'],
     ['EXPENSE_REPORT', 'Masraf Formu', 'MSF'],
     ['PROJECT', 'Proje', 'PRJ'],
+    ['PAYROLL', 'Bordro', 'BRD'],
   ];
   for (const [seqCode, seqName, prefix, yearly = true] of sequences) {
     await prisma.numberSequence.upsert({
@@ -1317,6 +1319,9 @@ async function main() {
 
   console.log('Seeding projects...');
   await seedProjects(prisma, { companyId: pulse.id, adminId: admin.id });
+
+  console.log('Seeding payroll...');
+  await seedPayroll(prisma, { companyId: pulse.id, adminId: admin.id });
 
   console.log('Seed completed.');
 }

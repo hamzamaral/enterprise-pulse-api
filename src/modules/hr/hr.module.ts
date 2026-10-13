@@ -49,6 +49,6 @@ import { PositionsService } from './positions.service';
     LeaveRequestsService,
     LeaveListener,
   ],
-  exports: [EmployeesService],
+  exports: [EmployeesService, AttendanceService],
 })
 export class HrModule {}

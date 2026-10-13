@@ -31,6 +31,7 @@ import { FinanceModule } from './modules/finance/finance.module';
 import { NumberingModule } from './modules/numbering/numbering.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PartnersModule } from './modules/partners/partners.module';
+import { PayrollModule } from './modules/payroll/payroll.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
 import { ReportsModule } from './modules/reports/reports.module';
@@ -90,6 +91,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     CrmModule,
     ExpensesModule,
     ProjectsModule,
+    PayrollModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

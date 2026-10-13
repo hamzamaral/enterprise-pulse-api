@@ -77,6 +77,10 @@ model Company {
   expenseCategories   ExpenseCategory[]
   expenseReports      ExpenseReport[]
   projects            Project[]
+  salaryRecords       SalaryRecord[]
+  payrollParameters   PayrollParameter[]
+  payrollPeriods      PayrollPeriod[]
+  payslips            Payslip[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

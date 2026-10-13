@@ -57,6 +57,10 @@ model User {
   createdExpenseReports ExpenseReport[]       @relation("ExpenseReportCreatedBy")
   createdProjects       Project[]             @relation("ProjectCreatedBy")
   createdProjectTasks   ProjectTask[]         @relation("ProjectTaskCreatedBy")
+  createdSalaryRecords  SalaryRecord[]        @relation("SalaryRecordCreatedBy")
+  approvedPayrolls      PayrollPeriod[]       @relation("PayrollPeriodApprovedBy")
+  paidPayrolls          PayrollPeriod[]       @relation("PayrollPeriodPaidBy")
+  createdPayrolls       PayrollPeriod[]       @relation("PayrollPeriodCreatedBy")
 
   @@map("users")
 }

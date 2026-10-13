@@ -1,0 +1,170 @@
+enum PayrollPeriodStatus {
+  /// Payslips can be recalculated and edited.
+  DRAFT
+  /// Locked; employees see their payslips.
+  APPROVED
+  /// Net salaries paid from a bank / cash account.
+  PAID
+}
+
+enum PayslipItemKind {
+  /// Taxable addition to the gross pay (prim, ikramiye).
+  EARNING
+  /// Taken from the net pay (avans, icra).
+  DEDUCTION
+}
+
+/// Gross monthly salary from `effectiveFrom` on; a period uses the latest record not after its end.
+model SalaryRecord {
+  id            String   @id @default(uuid()) @db.Uuid
+  companyId     String   @db.Uuid
+  employeeId    String   @db.Uuid
+  effectiveFrom DateTime @db.Date
+  grossSalary   Decimal  @db.Decimal(18, 2)
+  note          String?
+  createdById   String   @db.Uuid
+  createdAt     DateTime @default(now())
+
+  company   Company  @relation(fields: [companyId], references: [id])
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("SalaryRecordCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([employeeId, effectiveFrom])
+  @@index([companyId])
+  @@map("salary_records")
+}
+
+/// Legal figures of a payroll year: minimum wage, SGK ceiling, contribution and tax rates.
+model PayrollParameter {
+  id                       String   @id @default(uuid()) @db.Uuid
+  companyId                String   @db.Uuid
+  year                     Int
+  /// Gross monthly minimum wage; also the SGK floor and the base of the tax exemptions.
+  minimumWage              Decimal  @db.Decimal(18, 2)
+  /// Monthly SGK ceiling (prime esas kazanç üst sınırı).
+  sgkCeiling               Decimal  @db.Decimal(18, 2)
+  sgkEmployeeRate          Decimal  @db.Decimal(6, 4)
+  unemploymentEmployeeRate Decimal  @db.Decimal(6, 4)
+  /// Employer share after the treasury incentive.
+  sgkEmployerRate          Decimal  @db.Decimal(6, 4)
+  unemploymentEmployerRate Decimal  @db.Decimal(6, 4)
+  stampTaxRate             Decimal  @db.Decimal(8, 6)
+  /// Overtime is paid at hourly wage × this multiplier.
+  overtimeRate             Decimal  @default(1.5) @db.Decimal(4, 2)
+  /// Hours of a month used for the hourly wage.
+  monthlyHours             Int      @default(225)
+  /// Income tax brackets: `[{ upTo: "190000.00" | null, rate: "0.15" }]`, cumulative yearly base.
+  taxBrackets              Json
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, year])
+  @@map("payroll_parameters")
+}
+
+/// Monthly payroll (bordro dönemi): one payslip per employee employed in the month.
+model PayrollPeriod {
+  id                String              @id @default(uuid()) @db.Uuid
+  companyId         String              @db.Uuid
+  number            String
+  year              Int
+  month             Int
+  status            PayrollPeriodStatus @default(DRAFT)
+  /// Paid before EnterprisePulse was used; kept for the cumulative tax bases, never posted to treasury.
+  imported          Boolean             @default(false)
+  employeeCount     Int                 @default(0)
+  grossTotal        Decimal             @default(0) @db.Decimal(18, 2)
+  netTotal          Decimal             @default(0) @db.Decimal(18, 2)
+  /// Employee and employer SGK and unemployment contributions.
+  sgkTotal          Decimal             @default(0) @db.Decimal(18, 2)
+  /// Income and stamp tax after the minimum wage exemptions.
+  taxTotal          Decimal             @default(0) @db.Decimal(18, 2)
+  deductionTotal    Decimal             @default(0) @db.Decimal(18, 2)
+  employerCostTotal Decimal             @default(0) @db.Decimal(18, 2)
+  approvedAt        DateTime?
+  approvedById      String?             @db.Uuid
+  paymentAccountId  String?             @db.Uuid
+  paymentDate       DateTime?           @db.Date
+  paidAt            DateTime?
+  paidById          String?             @db.Uuid
+  createdById       String              @db.Uuid
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  company        Company          @relation(fields: [companyId], references: [id])
+  paymentAccount TreasuryAccount? @relation(fields: [paymentAccountId], references: [id])
+  approvedBy     User?            @relation("PayrollPeriodApprovedBy", fields: [approvedById], references: [id])
+  paidBy         User?            @relation("PayrollPeriodPaidBy", fields: [paidById], references: [id])
+  createdBy      User             @relation("PayrollPeriodCreatedBy", fields: [createdById], references: [id])
+  payslips       Payslip[]
+
+  @@unique([companyId, number])
+  @@unique([companyId, year, month])
+  @@map("payroll_periods")
+}
+
+/// Bordro pusulası. Employee fields are a snapshot of the month.
+model Payslip {
+  id                   String   @id @default(uuid()) @db.Uuid
+  companyId            String   @db.Uuid
+  periodId             String   @db.Uuid
+  employeeId           String   @db.Uuid
+  employeeNo           String
+  employeeName         String
+  departmentName       String?
+  positionName         String?
+  monthlySalary        Decimal  @db.Decimal(18, 2)
+  /// Days employed in the month on a 30-day basis.
+  employedDays         Int
+  /// Absent days and unpaid leave.
+  missingDays          Int      @default(0)
+  /// SGK prim günü: employed days − missing days.
+  payDays              Int
+  overtimeHours        Decimal  @default(0) @db.Decimal(6, 2)
+  basePay              Decimal  @db.Decimal(18, 2)
+  overtimePay          Decimal  @default(0) @db.Decimal(18, 2)
+  extraEarnings        Decimal  @default(0) @db.Decimal(18, 2)
+  grossPay             Decimal  @db.Decimal(18, 2)
+  sgkBase              Decimal  @db.Decimal(18, 2)
+  sgkEmployee          Decimal  @db.Decimal(18, 2)
+  unemploymentEmployee Decimal  @db.Decimal(18, 2)
+  incomeTaxBase        Decimal  @db.Decimal(18, 2)
+  /// Yearly cumulative income tax base including this month.
+  cumulativeTaxBase    Decimal  @db.Decimal(18, 2)
+  incomeTax            Decimal  @db.Decimal(18, 2)
+  incomeTaxExemption   Decimal  @db.Decimal(18, 2)
+  stampTax             Decimal  @db.Decimal(18, 2)
+  stampTaxExemption    Decimal  @db.Decimal(18, 2)
+  otherDeductions      Decimal  @default(0) @db.Decimal(18, 2)
+  netPay               Decimal  @db.Decimal(18, 2)
+  sgkEmployer          Decimal  @db.Decimal(18, 2)
+  unemploymentEmployer Decimal  @db.Decimal(18, 2)
+  employerCost         Decimal  @db.Decimal(18, 2)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id])
+  period   PayrollPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  items    PayslipItem[]
+
+  @@unique([periodId, employeeId])
+  @@index([employeeId])
+  @@index([companyId])
+  @@map("payslips")
+}
+
+model PayslipItem {
+  id          String          @id @default(uuid()) @db.Uuid
+  payslipId   String          @db.Uuid
+  kind        PayslipItemKind
+  description String
+  amount      Decimal         @db.Decimal(18, 2)
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payslipId])
+  @@map("payslip_items")
+}

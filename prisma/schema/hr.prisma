@@ -116,6 +116,8 @@ model Employee {
   projectMembers     ProjectMember[]
   assignedTasks      ProjectTask[]      @relation("ProjectTaskAssignee")
   timeEntries        TimeEntry[]
+  salaryRecords      SalaryRecord[]
+  payslips           Payslip[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])
