@@ -87,6 +87,12 @@ export const PERMISSION_REGISTRY = {
    * delete = remove drafts.
    */
   contracts: ['read', 'create', 'update', 'delete'],
+  /**
+   * Owners see their own budgets without a permission. read = every budget, its actuals and the
+   * manual entries; update = create budgets, edit drafts and plans, items, manual entries and run
+   * the overspend check; approve = approve and reopen budgets.
+   */
+  budgets: ['read', 'update', 'approve'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

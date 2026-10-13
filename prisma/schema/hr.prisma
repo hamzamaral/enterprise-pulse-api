@@ -44,6 +44,8 @@ model Department {
   purchaseRequests PurchaseRequest[]
   assetAssignments AssetAssignment[]
   jobPostings      JobPosting[]
+  budgets          Budget[]
+  budgetEntries    BudgetEntry[]
 
   @@unique([companyId, code])
   @@index([companyId, parentId])

@@ -96,6 +96,9 @@ model Company {
   tickets             Ticket[]
   contractTypes       ContractType[]
   contracts           Contract[]
+  budgetItems         BudgetItem[]
+  budgets             Budget[]
+  budgetEntries       BudgetEntry[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

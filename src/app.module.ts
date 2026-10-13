@@ -19,6 +19,7 @@ import { RedisModule } from './infrastructure/redis/redis.module';
 import { StorageModule } from './infrastructure/storage/storage.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BudgetsModule } from './modules/budgets/budgets.module';
 import { ContractsModule } from './modules/contracts/contracts.module';
 import { FilesModule } from './modules/files/files.module';
 import { HealthModule } from './modules/health/health.module';
@@ -102,6 +103,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     TrainingModule,
     SupportModule,
     ContractsModule,
+    BudgetsModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

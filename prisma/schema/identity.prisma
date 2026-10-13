@@ -77,6 +77,11 @@ model User {
   ownedContracts        Contract[]            @relation("ContractOwner")
   createdContracts      Contract[]            @relation("ContractCreatedBy")
   contractEvents        ContractEvent[]       @relation("ContractEventActor")
+  ownedBudgets          Budget[]              @relation("BudgetOwner")
+  approvedBudgets       Budget[]              @relation("BudgetApprovedBy")
+  createdBudgets        Budget[]              @relation("BudgetCreatedBy")
+  budgetEntries         BudgetEntry[]         @relation("BudgetEntryCreatedBy")
+  budgetEvents          BudgetEvent[]         @relation("BudgetEventActor")
 
   @@map("users")
 }

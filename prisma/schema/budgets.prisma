@@ -1,0 +1,168 @@
+enum BudgetItemKind {
+  INCOME
+  EXPENSE
+}
+
+/// Where the actual figures of an item come from; manual entries add to every source.
+enum BudgetSource {
+  /// Manual entries only (kira, lisans, reklam, …).
+  MANUAL
+  /// Lines of approved and paid expense reports, by expense category.
+  EXPENSES
+  /// Employer cost of approved and paid payroll periods.
+  PAYROLL
+  /// Issued purchase invoices net of VAT, by product category.
+  PURCHASES
+  /// Issued sales invoices net of VAT, less sales returns. Company-wide budgets only.
+  SALES
+}
+
+enum BudgetStatus {
+  DRAFT
+  APPROVED
+}
+
+enum BudgetEventType {
+  CREATED
+  UPDATED
+  PLAN_UPDATED
+  APPROVED
+  REOPENED
+  ALERT_SENT
+}
+
+enum BudgetAlertLevel {
+  /// 90% of the yearly plan used.
+  WARNING
+  /// Yearly plan exceeded.
+  OVER
+}
+
+/// Bütçe kalemi: an income or expense line of every budget and the source of its actuals.
+model BudgetItem {
+  id          String         @id @default(uuid()) @db.Uuid
+  companyId   String         @db.Uuid
+  code        String
+  name        String
+  kind        BudgetItemKind
+  source      BudgetSource   @default(MANUAL)
+  /// EXPENSES: expense categories, PURCHASES: product categories. Empty = whatever no other
+  /// item of the same source claims.
+  categoryIds String[]       @db.Uuid
+  description String?
+  isActive    Boolean        @default(true)
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id])
+  lines   BudgetLine[]
+  entries BudgetEntry[]
+  alerts  BudgetAlert[]
+
+  @@unique([companyId, code])
+  @@map("budget_items")
+}
+
+/// Yearly budget of the company (no department) or of a department and its sub-departments.
+model Budget {
+  id           String       @id @default(uuid()) @db.Uuid
+  companyId    String       @db.Uuid
+  year         Int
+  departmentId String?      @db.Uuid
+  name         String
+  status       BudgetStatus @default(DRAFT)
+  /// Responsible user; sees the budget without `budgets:read` and receives the alerts.
+  ownerId      String?      @db.Uuid
+  note         String?
+  /// Times the approved budget was reopened for revision.
+  revision     Int          @default(0)
+  approvedAt   DateTime?
+  approvedById String?      @db.Uuid
+  createdById  String       @db.Uuid
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  company    Company       @relation(fields: [companyId], references: [id])
+  department Department?   @relation(fields: [departmentId], references: [id])
+  owner      User?         @relation("BudgetOwner", fields: [ownerId], references: [id])
+  approvedBy User?         @relation("BudgetApprovedBy", fields: [approvedById], references: [id])
+  createdBy  User          @relation("BudgetCreatedBy", fields: [createdById], references: [id])
+  lines      BudgetLine[]
+  events     BudgetEvent[]
+  alerts     BudgetAlert[]
+
+  @@index([companyId, year])
+  @@index([departmentId])
+  @@map("budgets")
+}
+
+/// Planned amount of an item in a month (1–12), in the company currency.
+model BudgetLine {
+  id       String  @id @default(uuid()) @db.Uuid
+  budgetId String  @db.Uuid
+  itemId   String  @db.Uuid
+  month    Int
+  amount   Decimal @db.Decimal(18, 2)
+
+  budget Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  item   BudgetItem @relation(fields: [itemId], references: [id])
+
+  @@unique([budgetId, itemId, month])
+  @@index([itemId])
+  @@map("budget_lines")
+}
+
+/// Manually recorded actual (gerçekleşen) of an item, e.g. rent paid outside EnterprisePulse.
+model BudgetEntry {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @db.Uuid
+  itemId       String   @db.Uuid
+  /// Counts towards this department's budgets; null = company-wide budgets only.
+  departmentId String?  @db.Uuid
+  entryDate    DateTime @db.Date
+  /// Company currency.
+  amount       Decimal  @db.Decimal(18, 2)
+  description  String
+  createdById  String   @db.Uuid
+  createdAt    DateTime @default(now())
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  item       BudgetItem  @relation(fields: [itemId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  createdBy  User        @relation("BudgetEntryCreatedBy", fields: [createdById], references: [id])
+
+  @@index([companyId, entryDate])
+  @@index([itemId])
+  @@map("budget_entries")
+}
+
+model BudgetEvent {
+  id        String          @id @default(uuid()) @db.Uuid
+  budgetId  String          @db.Uuid
+  actorId   String?         @db.Uuid
+  type      BudgetEventType
+  note      String?
+  createdAt DateTime        @default(now())
+
+  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  actor  User?  @relation("BudgetEventActor", fields: [actorId], references: [id])
+
+  @@index([budgetId])
+  @@map("budget_events")
+}
+
+/// Sent once per item and level; cleared when the budget is reopened.
+model BudgetAlert {
+  id        String           @id @default(uuid()) @db.Uuid
+  budgetId  String           @db.Uuid
+  itemId    String           @db.Uuid
+  level     BudgetAlertLevel
+  createdAt DateTime         @default(now())
+
+  budget Budget     @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  item   BudgetItem @relation(fields: [itemId], references: [id])
+
+  @@unique([budgetId, itemId, level])
+  @@map("budget_alerts")
+}

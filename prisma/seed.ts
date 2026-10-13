@@ -19,6 +19,7 @@ import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
 import { seedAttendance } from './seed-attendance';
+import { seedBudgets } from './seed-budgets';
 import { seedContracts } from './seed-contracts';
 import { seedCrm } from './seed-crm';
 import { seedExpenses } from './seed-expenses';
@@ -81,6 +82,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'support:read',
       'support:update',
       'contracts:read',
+      'budgets:read',
     ],
   },
   employee: {
@@ -1350,6 +1352,9 @@ async function main() {
 
   console.log('Seeding contracts...');
   await seedContracts(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
+
+  console.log('Seeding budgets...');
+  await seedBudgets(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
 
   console.log('Seed completed.');
 }

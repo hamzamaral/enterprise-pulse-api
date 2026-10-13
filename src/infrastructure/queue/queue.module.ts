@@ -6,6 +6,7 @@ export const QUEUES = {
   MAIL: 'mail',
   /** Daily contract renewals, expiries and reminders. */
   CONTRACTS: 'contracts',
+  BUDGETS: 'budgets',
 } as const;
 
 @Global()
@@ -30,7 +31,11 @@ export const QUEUES = {
         };
       },
     }),
-    BullModule.registerQueue({ name: QUEUES.MAIL }, { name: QUEUES.CONTRACTS }),
+    BullModule.registerQueue(
+      { name: QUEUES.MAIL },
+      { name: QUEUES.CONTRACTS },
+      { name: QUEUES.BUDGETS },
+    ),
   ],
   exports: [BullModule],
 })
