@@ -117,6 +117,28 @@ export class SalariesService {
     return this.history(user.companyId, employee.id);
   }
 
+  /** First salary of a new hire, inside the caller's transaction. */
+  async createInitial(
+    tx: PrismaTx,
+    user: AuthUser,
+    employeeId: string,
+    effectiveFrom: Date,
+    grossSalary: Prisma.Decimal.Value,
+    note: string,
+  ): Promise<void> {
+    await this.assertOpen(user.companyId, effectiveFrom, tx);
+    await tx.salaryRecord.create({
+      data: {
+        companyId: user.companyId,
+        employeeId,
+        effectiveFrom,
+        grossSalary,
+        note,
+        createdById: user.id,
+      },
+    });
+  }
+
   async remove(companyId: string, id: string): Promise<void> {
     const row = await this.prisma.salaryRecord.findFirst({ where: { id, companyId } });
     if (!row) throw new NotFoundException('Salary record not found');
@@ -139,10 +161,10 @@ export class SalariesService {
   }
 
   /** Months of approved payrolls are closed: their salaries can no longer change. */
-  private async assertOpen(companyId: string, date: Date) {
+  async assertOpen(companyId: string, date: Date, client: PrismaTx | PrismaService = this.prisma) {
     const year = date.getUTCFullYear();
     const month = date.getUTCMonth() + 1;
-    const closed = await this.prisma.payrollPeriod.findFirst({
+    const closed = await client.payrollPeriod.findFirst({
       where: {
         companyId,
         status: { not: PayrollPeriodStatus.DRAFT },

@@ -1,0 +1,260 @@
+enum JobPostingStatus {
+  DRAFT
+  OPEN
+  ON_HOLD
+  CLOSED
+}
+
+enum CandidateSource {
+  CAREER_SITE
+  REFERRAL
+  LINKEDIN
+  JOB_BOARD
+  AGENCY
+  OTHER
+}
+
+enum ApplicationStage {
+  APPLIED
+  SCREENING
+  INTERVIEW
+  OFFER
+  /// Turned into an employee; terminal.
+  HIRED
+  REJECTED
+  /// The candidate dropped out.
+  WITHDRAWN
+}
+
+enum ApplicationActivityType {
+  STAGE
+  NOTE
+  INTERVIEW
+  OFFER
+  HIRED
+}
+
+enum InterviewType {
+  PHONE
+  VIDEO
+  ONSITE
+  TECHNICAL
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum InterviewRecommendation {
+  STRONG_YES
+  YES
+  NO
+  STRONG_NO
+}
+
+enum JobOfferStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+/// İş ilanı: an open position candidates apply to.
+model JobPosting {
+  id              String           @id @default(uuid()) @db.Uuid
+  companyId       String           @db.Uuid
+  number          String
+  title           String
+  departmentId    String?          @db.Uuid
+  positionId      String?          @db.Uuid
+  branchId        String?          @db.Uuid
+  employmentType  EmploymentType   @default(FULL_TIME)
+  location        String?
+  description     String?
+  requirements    String?
+  /// Number of people to hire; the posting closes when this many are hired.
+  openings        Int              @default(1)
+  status          JobPostingStatus @default(DRAFT)
+  /// Becomes the manager of the hired employee.
+  hiringManagerId String?          @db.Uuid
+  /// Gross monthly range in the company currency.
+  salaryMin       Decimal?         @db.Decimal(18, 2)
+  salaryMax       Decimal?         @db.Decimal(18, 2)
+  publishedAt     DateTime?
+  closesAt        DateTime?        @db.Date
+  closedAt        DateTime?
+  createdById     String           @db.Uuid
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  company       Company          @relation(fields: [companyId], references: [id])
+  department    Department?      @relation(fields: [departmentId], references: [id])
+  position      Position?        @relation(fields: [positionId], references: [id])
+  branch        Branch?          @relation(fields: [branchId], references: [id])
+  hiringManager Employee?        @relation("JobPostingHiringManager", fields: [hiringManagerId], references: [id])
+  createdBy     User             @relation("JobPostingCreatedBy", fields: [createdById], references: [id])
+  applications  JobApplication[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("job_postings")
+}
+
+/// Aday: a person in the talent pool; may apply to several postings.
+model Candidate {
+  id             String          @id @default(uuid()) @db.Uuid
+  companyId      String          @db.Uuid
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  city           String?
+  source         CandidateSource @default(OTHER)
+  currentTitle   String?
+  currentCompany String?
+  linkedinUrl    String?
+  /// Expected gross monthly salary in the company currency.
+  expectedSalary Decimal?        @db.Decimal(18, 2)
+  notes          String?
+  /// File with entity type `Candidate`.
+  cvFileId       String?         @db.Uuid
+  /// Employee who referred the candidate.
+  referredById   String?         @db.Uuid
+  createdById    String          @db.Uuid
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  company      Company          @relation(fields: [companyId], references: [id])
+  cvFile       FileObject?      @relation(fields: [cvFileId], references: [id])
+  referredBy   Employee?        @relation("CandidateReferredBy", fields: [referredById], references: [id])
+  createdBy    User             @relation("CandidateCreatedBy", fields: [createdById], references: [id])
+  applications JobApplication[]
+
+  @@unique([companyId, email])
+  @@map("candidates")
+}
+
+/// Başvuru: a candidate in the pipeline of one posting.
+model JobApplication {
+  id             String           @id @default(uuid()) @db.Uuid
+  companyId      String           @db.Uuid
+  postingId      String           @db.Uuid
+  candidateId    String           @db.Uuid
+  stage          ApplicationStage @default(APPLIED)
+  /// Recruiter's overall score, 1-5.
+  rating         Int?
+  /// Order inside its board column.
+  sortOrder      Int              @default(0)
+  appliedAt      DateTime         @default(now())
+  stageChangedAt DateTime         @default(now())
+  rejectReason   String?
+  hiredAt        DateTime?
+  /// Employee record created on hire.
+  employeeId     String?          @unique @db.Uuid
+  createdById    String           @db.Uuid
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id])
+  posting    JobPosting            @relation(fields: [postingId], references: [id])
+  candidate  Candidate             @relation(fields: [candidateId], references: [id])
+  employee   Employee?             @relation("JobApplicationEmployee", fields: [employeeId], references: [id])
+  createdBy  User                  @relation("JobApplicationCreatedBy", fields: [createdById], references: [id])
+  activities ApplicationActivity[]
+  interviews Interview[]
+  offers     JobOffer[]
+
+  @@unique([postingId, candidateId])
+  @@index([companyId, stage])
+  @@index([candidateId])
+  @@map("job_applications")
+}
+
+/// Timeline of an application: stage changes, notes, interviews, offers.
+model ApplicationActivity {
+  id            String                  @id @default(uuid()) @db.Uuid
+  applicationId String                  @db.Uuid
+  type          ApplicationActivityType
+  fromStage     ApplicationStage?
+  toStage       ApplicationStage?
+  body          String?
+  createdById   String                  @db.Uuid
+  createdAt     DateTime                @default(now())
+
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("ApplicationActivityCreatedBy", fields: [createdById], references: [id])
+
+  @@index([applicationId, createdAt])
+  @@map("application_activities")
+}
+
+/// Mülakat: completes on its own once every interviewer has given feedback.
+model Interview {
+  id              String          @id @default(uuid()) @db.Uuid
+  companyId       String          @db.Uuid
+  applicationId   String          @db.Uuid
+  type            InterviewType
+  status          InterviewStatus @default(SCHEDULED)
+  scheduledAt     DateTime
+  durationMinutes Int             @default(60)
+  /// Room or meeting link.
+  location        String?
+  notes           String?
+  createdById     String          @db.Uuid
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  company      Company                @relation(fields: [companyId], references: [id])
+  application  JobApplication         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdBy    User                   @relation("InterviewCreatedBy", fields: [createdById], references: [id])
+  participants InterviewParticipant[]
+
+  @@index([companyId, scheduledAt])
+  @@index([applicationId])
+  @@map("interviews")
+}
+
+/// An interviewer and their feedback.
+model InterviewParticipant {
+  id             String                   @id @default(uuid()) @db.Uuid
+  interviewId    String                   @db.Uuid
+  employeeId     String                   @db.Uuid
+  /// 1-5.
+  rating         Int?
+  recommendation InterviewRecommendation?
+  feedback       String?
+  submittedAt    DateTime?
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+  employee  Employee  @relation("InterviewParticipantEmployee", fields: [employeeId], references: [id])
+
+  @@unique([interviewId, employeeId])
+  @@index([employeeId])
+  @@map("interview_participants")
+}
+
+/// İş teklifi: an accepted offer is required to hire.
+model JobOffer {
+  id            String         @id @default(uuid()) @db.Uuid
+  companyId     String         @db.Uuid
+  applicationId String         @db.Uuid
+  /// Gross monthly salary in the company currency; becomes the first salary record on hire.
+  grossSalary   Decimal        @db.Decimal(18, 2)
+  startDate     DateTime       @db.Date
+  expiresAt     DateTime?      @db.Date
+  status        JobOfferStatus @default(PENDING)
+  notes         String?
+  respondedAt   DateTime?
+  createdById   String         @db.Uuid
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  company     Company        @relation(fields: [companyId], references: [id])
+  application JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  createdBy   User           @relation("JobOfferCreatedBy", fields: [createdById], references: [id])
+
+  @@index([applicationId])
+  @@map("job_offers")
+}

@@ -52,6 +52,7 @@ model FileObject {
 
   company      Company       @relation(fields: [companyId], references: [id])
   expenseLines ExpenseLine[]
+  candidates   Candidate[]
 
   @@index([companyId, entityType, entityId])
   @@map("files")

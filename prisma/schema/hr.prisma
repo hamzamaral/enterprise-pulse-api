@@ -43,6 +43,7 @@ model Department {
   positions        Position[]
   purchaseRequests PurchaseRequest[]
   assetAssignments AssetAssignment[]
+  jobPostings      JobPosting[]
 
   @@unique([companyId, code])
   @@index([companyId, parentId])
@@ -61,9 +62,10 @@ model Position {
   updatedAt    DateTime  @updatedAt
   deletedAt    DateTime?
 
-  company    Company     @relation(fields: [companyId], references: [id])
-  department Department? @relation(fields: [departmentId], references: [id])
-  employees  Employee[]
+  company     Company      @relation(fields: [companyId], references: [id])
+  department  Department?  @relation(fields: [departmentId], references: [id])
+  employees   Employee[]
+  jobPostings JobPosting[]
 
   @@unique([companyId, code])
   @@map("positions")
@@ -98,26 +100,30 @@ model Employee {
   updatedAt             DateTime       @updatedAt
   deletedAt             DateTime?
 
-  company            Company            @relation(fields: [companyId], references: [id])
-  branch             Branch?            @relation(fields: [branchId], references: [id])
-  user               User?              @relation(fields: [userId], references: [id])
-  department         Department?        @relation("EmployeeDepartment", fields: [departmentId], references: [id])
-  position           Position?          @relation(fields: [positionId], references: [id])
-  manager            Employee?          @relation("EmployeeManager", fields: [managerId], references: [id])
-  reports            Employee[]         @relation("EmployeeManager")
-  managedDepartments Department[]       @relation("DepartmentManager")
+  company            Company                @relation(fields: [companyId], references: [id])
+  branch             Branch?                @relation(fields: [branchId], references: [id])
+  user               User?                  @relation(fields: [userId], references: [id])
+  department         Department?            @relation("EmployeeDepartment", fields: [departmentId], references: [id])
+  position           Position?              @relation(fields: [positionId], references: [id])
+  manager            Employee?              @relation("EmployeeManager", fields: [managerId], references: [id])
+  reports            Employee[]             @relation("EmployeeManager")
+  managedDepartments Department[]           @relation("DepartmentManager")
   leaveBalances      LeaveBalance[]
   leaveRequests      LeaveRequest[]
   assetAssignments   AssetAssignment[]
   shiftAssignments   ShiftAssignment[]
   attendance         AttendanceRecord[]
   expenseReports     ExpenseReport[]
-  managedProjects    Project[]          @relation("ProjectManager")
+  managedProjects    Project[]              @relation("ProjectManager")
   projectMembers     ProjectMember[]
-  assignedTasks      ProjectTask[]      @relation("ProjectTaskAssignee")
+  assignedTasks      ProjectTask[]          @relation("ProjectTaskAssignee")
   timeEntries        TimeEntry[]
   salaryRecords      SalaryRecord[]
   payslips           Payslip[]
+  hiringPostings     JobPosting[]           @relation("JobPostingHiringManager")
+  referredCandidates Candidate[]            @relation("CandidateReferredBy")
+  hiredFrom          JobApplication?        @relation("JobApplicationEmployee")
+  interviews         InterviewParticipant[] @relation("InterviewParticipantEmployee")
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

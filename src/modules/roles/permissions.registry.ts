@@ -55,6 +55,13 @@ export const PERMISSION_REGISTRY = {
    * approve = approve and reopen periods; pay = pay and reverse net salaries.
    */
   payroll: ['read', 'create', 'update', 'approve', 'pay'],
+  /**
+   * Interviewers see and rate their own interviews without a permission. read = postings,
+   * candidates and pipelines; create = postings, candidates, applications, interviews, offers and
+   * pipeline moves; update = edit postings, candidates and interviews; delete = remove them;
+   * hire = turn a candidate with an accepted offer into an employee.
+   */
+  recruitment: ['read', 'create', 'update', 'delete', 'hire'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

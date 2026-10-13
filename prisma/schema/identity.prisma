@@ -61,6 +61,12 @@ model User {
   approvedPayrolls      PayrollPeriod[]       @relation("PayrollPeriodApprovedBy")
   paidPayrolls          PayrollPeriod[]       @relation("PayrollPeriodPaidBy")
   createdPayrolls       PayrollPeriod[]       @relation("PayrollPeriodCreatedBy")
+  createdJobPostings    JobPosting[]          @relation("JobPostingCreatedBy")
+  createdCandidates     Candidate[]           @relation("CandidateCreatedBy")
+  createdApplications   JobApplication[]      @relation("JobApplicationCreatedBy")
+  applicationActivities ApplicationActivity[] @relation("ApplicationActivityCreatedBy")
+  createdInterviews     Interview[]           @relation("InterviewCreatedBy")
+  createdJobOffers      JobOffer[]            @relation("JobOfferCreatedBy")
 
   @@map("users")
 }

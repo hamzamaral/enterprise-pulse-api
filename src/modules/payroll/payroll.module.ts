@@ -21,5 +21,6 @@ import { SalariesService } from './salaries.service';
     PayrollParametersController,
   ],
   providers: [PayrollService, PayrollSettingsService, SalariesService],
+  exports: [SalariesService],
 })
 export class PayrollModule {}

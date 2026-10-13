@@ -34,6 +34,7 @@ import { PartnersModule } from './modules/partners/partners.module';
 import { PayrollModule } from './modules/payroll/payroll.module';
 import { ProjectsModule } from './modules/projects/projects.module';
 import { PurchasingModule } from './modules/purchasing/purchasing.module';
+import { RecruitmentModule } from './modules/recruitment/recruitment.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { RolesModule } from './modules/roles/roles.module';
@@ -92,6 +93,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     ExpensesModule,
     ProjectsModule,
     PayrollModule,
+    RecruitmentModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

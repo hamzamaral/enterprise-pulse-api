@@ -81,6 +81,11 @@ model Company {
   payrollParameters   PayrollParameter[]
   payrollPeriods      PayrollPeriod[]
   payslips            Payslip[]
+  jobPostings         JobPosting[]
+  candidates          Candidate[]
+  jobApplications     JobApplication[]
+  interviews          Interview[]
+  jobOffers           JobOffer[]
   timeEntries         TimeEntry[]
 
   @@map("companies")
@@ -105,6 +110,7 @@ model Branch {
   employees      Employee[]
   assetLocations AssetLocation[]
   warehouses     Warehouse[]
+  jobPostings    JobPosting[]
 
   @@unique([companyId, code])
   @@index([companyId])

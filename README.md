@@ -32,6 +32,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **İnsan Kaynakları**       | Hiyerarşik departmanlar, pozisyonlar, personel kartı, organizasyon şeması, izin türleri ve kıdeme göre yıllık hak ediş, resmi tatil ve iş günü hesabı, onay akışlı izin talebi; vardiya tanımları (gece vardiyası dahil) ve haftalık plan, self-servis giriş-çıkış, geç kalma / devamsızlık / fazla mesai hesaplayan aylık puantaj                                            |
 | **Masraf ve Harcırah**     | Fişli masraf, günlük harcırah ve km ücretli araç kalemleriyle masraf formu, dövizli fiş (kayıt anındaki kurla), fiş görseli / PDF ekleme, kalem limiti ve fiş zorunluluğu uyarıları, onay akışı, onaylanan formu kasa / bankadan ödeme ve ters kayıtla geri alma, türe ve aya göre masraf özeti                                                                               |
 | **Bordro**                 | Tarihli ücret geçmişi, yıla göre bordro parametreleri (asgari ücret, SGK tavanı, prim oranları, gelir vergisi dilimleri), puantajdan eksik gün ve fazla mesai, ücretsiz izin düşümü, kümülatif gelir vergisi ve asgari ücret istisnaları, ek kazanç / kesinti kalemleri, onay, tek hazine hareketiyle maaş ödemesi ve ters kayıtla geri alma, personelin kendi ücret pusulası |
+| **İşe Alım**               | İş ilanları (taslak, yayında, beklemede, kapalı; kadro, ücret aralığı, işe alım yöneticisi), aday havuzu ve CV dosyası, sürükle-bırak başvuru hattı, mülakat planlama ve mülakatçı değerlendirmesi, teklif (kabul / ret / geri çekme), adayı tek işlemde personele ve ilk ücret kaydına dönüştürme, işe alım hunisi                                                           |
 | **Proje Yönetimi**         | Müşteriye bağlı projeler, rol ve saatlik maliyetli proje ekibi, sürükle-bırak görev panosu (öncelik, sorumlu, termin, tahmini süre), haftalık zaman çizelgesi, işçilik ve projeye yansıtılan masraflarla bütçe takibi, geciken ve bütçesi aşan proje göstergeleri                                                                                                             |
 | **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu                                                                                                                             |
 | **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi                                                                                                                                        |
@@ -98,6 +99,12 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   `PayrollParameter` satırında saklanır. Dönemler `DRAFT → APPROVED → PAID` ilerler; aynı anda tek taslak
   olur, onaylı aylara tarihlenen ücret değişikliği engellenir, ödeme hazineye `PAYROLL_PAYMENT` olarak
   tek satırda yazılır. Personel pusulasını yalnızca dönem onaylandıktan sonra görür.
+- **İşe alım hattı:** Başvurular `APPLIED → SCREENING → INTERVIEW → OFFER` aşamalarında ilerler, `HIRED`,
+  `REJECTED` ve `WITHDRAWN` kapanış aşamalarıdır; mülakat ve teklif başvuruyu yalnızca ileri taşır
+  (`recruitment/recruitment-math.ts`). Mülakatçılar izin gerekmeden kendi mülakatlarını ve adayın CV'sini görür,
+  değerlendirmeyi yalnızca katılımcı girer; herkes değerlendirince mülakat tamamlanır. İşe alma ilan satırı
+  kilitlenerek yapılır: kabul edilmiş teklif şarttır, personel kartı (`EmployeesService.createInTx`) ve ilk
+  ücret kaydı (`SalariesService.createInitial`) aynı işlemde açılır, kadro dolunca ilan kapanır.
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -150,11 +157,13 @@ pnpm start:dev        # http://localhost:3000/api/v1
 
 - **Birim testleri (Jest):** iş günü ve izin hesabı, puantaj (geç kalma, fazla mesai, gece vardiyası, saat dilimi),
   amortisman, stok matematiği, CRM aşama kuralları, masraf kalemi hesabı, proje ilerlemesi ve bütçe kullanımı, bordro
-  hesabı (SGK tavanı, vergi dilimi geçişi, asgari ücret istisnası), numaralandırma gibi saf iş kuralları.
+  hesabı (SGK tavanı, vergi dilimi geçişi, asgari ücret istisnası), işe alım hunisi ve mülakat puanı,
+  numaralandırma gibi saf iş kuralları.
 - **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları,
   CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma), masraf formu (onay, ödeme, ters kayıt, gizlilik),
   proje yönetimi (ekip yetkisi, görev panosu, haftalık zaman çizelgesi, projeye masraf yansıtma),
-  bordro (pusula gizliliği, kümülatif matrah, onay / ödeme / ters kayıt, ücret geçmişi, parametreler)
+  bordro (pusula gizliliği, kümülatif matrah, onay / ödeme / ters kayıt, ücret geçmişi, parametreler),
+  işe alım (mülakatçı yetkisi, değerlendirme, teklif, adayı personele dönüştürme, ret ve yeniden açma)
   gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
   kritik stok bildirimi dahil.
 - **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed

@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EmployeeStatus, Prisma } from '@prisma/client';
 import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/paginate';
-import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { PrismaService, type PrismaTx } from '../../infrastructure/prisma/prisma.service';
 import { AssetAssignmentsService } from '../assets/asset-assignments.service';
 import { NumberingService } from '../numbering/numbering.service';
 import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
@@ -107,22 +107,29 @@ export class EmployeesService {
 
   async create(companyId: string, dto: CreateEmployeeDto): Promise<EmployeeDetailDto> {
     await this.assertReferences(companyId, dto);
-    const id = await this.prisma.$transaction(async (tx) => {
-      const employeeNo = await this.numbering.next(companyId, 'EMPLOYEE', tx);
-      const row = await tx.employee.create({
-        data: {
-          ...toData(dto),
-          firstName: dto.firstName,
-          lastName: dto.lastName,
-          companyId,
-          employeeNo,
-          hireDate: parseDateOnly(dto.hireDate),
-        },
-        select: { id: true },
-      });
-      return row.id;
-    });
+    const { id } = await this.prisma.$transaction((tx) => this.insert(tx, companyId, dto));
     return this.findOne(companyId, id);
+  }
+
+  /** Creates an employee inside the caller's transaction, e.g. when a candidate is hired. */
+  async createInTx(tx: PrismaTx, companyId: string, dto: CreateEmployeeDto) {
+    await this.assertReferences(companyId, dto);
+    return this.insert(tx, companyId, dto);
+  }
+
+  private async insert(tx: PrismaTx, companyId: string, dto: CreateEmployeeDto) {
+    const employeeNo = await this.numbering.next(companyId, 'EMPLOYEE', tx);
+    return tx.employee.create({
+      data: {
+        ...toData(dto),
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        companyId,
+        employeeNo,
+        hireDate: parseDateOnly(dto.hireDate),
+      },
+      select: { id: true, employeeNo: true },
+    });
   }
 
   async update(companyId: string, id: string, dto: UpdateEmployeeDto): Promise<EmployeeDetailDto> {
