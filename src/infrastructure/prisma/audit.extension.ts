@@ -16,6 +16,8 @@ const SKIPPED_MODELS = new Set<string>([
   'StockMovementLine',
   'StockMovementSerial',
   'StockCountLine',
+  // The journal entry is the audited record of its lines.
+  'JournalLine',
 ]);
 
 const REDACTED_FIELDS = new Set(['passwordHash', 'twoFactorSecret', 'tokenHash']);

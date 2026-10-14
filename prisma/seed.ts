@@ -25,6 +25,7 @@ import { seedCrm } from './seed-crm';
 import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
 import { seedFleet } from './seed-fleet';
+import { seedAccounting } from './seed-accounting';
 import { seedInventory } from './seed-inventory';
 import { seedPayroll } from './seed-payroll';
 import { seedPerformance } from './seed-performance';
@@ -85,6 +86,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'contracts:read',
       'budgets:read',
       'fleet:read',
+      'accounting:read',
     ],
   },
   employee: {
@@ -231,6 +233,7 @@ async function seedCompany(code: string, name: string, branches: [string, string
     ['JOB_POSTING', 'İş İlanı', 'ILN'],
     ['TICKET', 'Destek Talebi', 'TKT'],
     ['CONTRACT', 'Sözleşme', 'SZL'],
+    ['JOURNAL_ENTRY', 'Yevmiye Fişi', 'YEV'],
   ];
   for (const [seqCode, seqName, prefix, yearly = true] of sequences) {
     await prisma.numberSequence.upsert({
@@ -1360,6 +1363,12 @@ async function main() {
 
   console.log('Seeding fleet...');
   await seedFleet(prisma, { companyId: pulse.id, adminId: admin.id });
+
+  console.log('Seeding accounting...');
+  await seedAccounting(prisma, [pulse.id, logistics.id], {
+    companyId: pulse.id,
+    adminId: admin.id,
+  });
 
   console.log('Seed completed.');
 }

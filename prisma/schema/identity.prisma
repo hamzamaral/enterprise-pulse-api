@@ -88,6 +88,7 @@ model User {
   vehicleFuelEntries    VehicleFuelEntry[]       @relation("VehicleFuelEntryCreatedBy")
   vehicleServices       VehicleService[]         @relation("VehicleServiceCreatedBy")
   vehicleDocuments      VehicleDocument[]        @relation("VehicleDocumentCreatedBy")
+  journalEntries        JournalEntry[]           @relation("JournalEntryCreatedBy")
 
   @@map("users")
 }

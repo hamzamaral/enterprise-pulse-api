@@ -60,6 +60,7 @@ model BusinessPartner {
   projects         Project[]
   contracts        Contract[]
   vehicleServices  VehicleService[]
+  journalLines     JournalLine[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

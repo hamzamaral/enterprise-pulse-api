@@ -38,6 +38,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Sözleşmeler**            | Cari ve personel sözleşmeleri, gelir / gider yönlü sözleşme türleri ve varsayılan süreler, taslak → yürürlükte → sona erdi / feshedildi yaşam döngüsü, otomatik yenileme ve ihbar süresi, manuel yenileme, ileri tarihli fesih ve geri alma, bitiş / fesih son günü hatırlatması (bildirim ve e-posta), günlük zamanlanmış iş, imzalı sözleşme ekleri, olay geçmişi, yıllık gelir / gider değeri ve 12 aylık bitiş takvimi                                                                        |
 | **Bütçe**                  | Gelir / gider bütçe kalemleri ve gerçekleşen kaynağı (masraf raporu, bordro, satın alma ve satış faturası, elle giriş), masraf ve ürün kategorisi eşlemesi, yıllık şirket ve departman bütçeleri, 12 aylık plan, geçen yılın bütçesinden veya gerçekleşeninden yüzde ayarlı kopyalama, taslak → onaylı → revizyon akışı, alt departmanları kapsayan plan / gerçekleşen karşılaştırması, belge kırılımı, %90 ve aşım uyarısı (bildirim ve e-posta), günlük zamanlanmış iş                          |
 | **Araç ve Filo**           | Araç kartı (Türk plakası doğrulama, mülkiyet ve kiralama bitişi, departman), sürücü zimmeti ve devir, sürücünün kendi aracına yakıt ve km girişi, geriye dönük km tutarlılığı, depo dolumu yöntemiyle L/100 km, periyodik bakım planı (km ve ay aralığı), onarım ve lastik kayıtları, muayene / trafik sigortası / kasko / egzoz emisyon takibi, bitişe 30 gün kala ve bittiğinde hatırlatma (bildirim ve e-posta), yıllık maliyet, km başına maliyet ve son 12 ay grafiği, günlük zamanlanmış iş |
+| **Muhasebe**               | Tekdüzen hesap planı (ana ve alt hesaplar, sistem hesapları), yevmiye fişi (taslak, kesinleştirme, ters kayıt), satış / alış faturası, iade, irsaliye maliyeti, stok hareketi, tahsilat / ödeme, çek, kasa ve cari açılışı, masraf ve bordrodan otomatik fiş (gece çalışan iş ve elle çalıştırma), belge iptal edilince ters kayıt, değişen bordroda yeniden kayıt, dönem kilidi, muavin defter, mizan, bilanço ve gelir tablosu                                                                  |
 | **Proje Yönetimi**         | Müşteriye bağlı projeler, rol ve saatlik maliyetli proje ekibi, sürükle-bırak görev panosu (öncelik, sorumlu, termin, tahmini süre), haftalık zaman çizelgesi, işçilik ve projeye yansıtılan masraflarla bütçe takibi, geciken ve bütçesi aşan proje göstergeleri                                                                                                                                                                                                                                 |
 | **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu                                                                                                                                                                                                                                                 |
 | **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi                                                                                                                                                                                                                                                            |
@@ -150,6 +151,15 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   aralığından planlar. BullMQ `fleet` kuyruğundaki günlük iş (07:15, Europe/Istanbul) bitişi 30 gün içinde
   olan veya biten belge ve yaklaşan / geciken bakım için `fleet:update` izinlilere ve sürücüye durum başına
   bir kez bildirim ve e-posta gönderir. Aracı `fleet:read` izinliler ve güncel sürücüsü görür.
+- **Otomatik muhasebe fişleri:** `AccountingPostingService` her belge türü için bir aday listesi çıkarır
+  (`source` + `sourceId`, fiş tarihi, istenip istenmediği ve satırları) ve açık fişle karşılaştırır: istenen
+  ama fişi olmayan belge için fiş keser, iptal edilen belgenin fişini ters kayıtla kapatır, değişebilen
+  bordroda satırların parmak izi değişince ters kayıt + yeni fiş keser. Her belge `pg_advisory_xact_lock`
+  altında ayrı işlemde muhasebeleşir; aynı belge iki kez fişe dönüşmez. Hesap kuralları
+  `accounting/accounting-rules.ts`'tedir (ör. satış faturası 120 / 600 + 391, alış faturası 153 + 770 + 191 /
+  320, maaş tahakkuku 770 / 335 + 360 + 361 + 336). Kilit tarihine düşen belgeler atlanır; elle fiş, ters kayıt
+  ve kesinleştirme de kilitli döneme yapılamaz. BullMQ `accounting` kuyruğundaki iş her gece 02:30'da
+  (Europe/Istanbul) tüm şirketlerde çalışır.
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -206,7 +216,9 @@ pnpm start:dev        # http://localhost:3000/api/v1
   performans puanı ve dağılımı, sertifika geçerliliği ve uyum oranı, SLA hedefi ve durumu,
   sözleşme dönemi, otomatik yenileme ve hatırlatma tarihi, yıllık sözleşme değeri,
   bütçe kalemi durumu, kategori eşlemesi ve plan / gerçekleşen karşılaştırması,
-  plaka doğrulama, km aralığı, depo dolumu tüketimi, belge ve bakım durumu, numaralandırma gibi saf iş kuralları.
+  plaka doğrulama, km aralığı, depo dolumu tüketimi, belge ve bakım durumu,
+  fiş satırı normalleştirme, mizan, bilanço ve gelir tablosu, belge başına muhasebe kuralları,
+  numaralandırma gibi saf iş kuralları.
 - **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları,
   CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma), masraf formu (onay, ödeme, ters kayıt, gizlilik),
   proje yönetimi (ekip yetkisi, görev panosu, haftalık zaman çizelgesi, projeye masraf yansıtma),
@@ -219,7 +231,10 @@ pnpm start:dev        # http://localhost:3000/api/v1
   bütçe (sorumlu görünürlüğü, kalem eşleme kuralları, plan / onay / revizyon, departman kapsamı,
   belge kırılımı, geçen yıldan kopyalama, seviye başına tek uyarı),
   filo (sürücü self-servisi, plaka kuralları, zimmet devri, km tutarlılığı, tüketim hesabı, bakım planı,
-  belge durumları, durum başına tek hatırlatma, silme ve hizmetten çıkarma)
+  belge durumları, durum başına tek hatırlatma, silme ve hizmetten çıkarma),
+  muhasebe (yetki sınırları, açılış / fatura / tahsilat fişleri, iptalde ters kayıt ve tekrar çalıştırmada
+  değişmezlik, elle fişin dengesi, kesinleştirme ve ters kaydı, dönem kilidi, mizan ve bilanço dengesi,
+  alt hesap ve sistem hesabı kuralları)
   gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
   kritik stok bildirimi dahil.
 - **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed

@@ -133,6 +133,7 @@ model Employee {
   contracts          Contract[]
   vehicleAssignments VehicleAssignment[]
   vehicleFuelEntries VehicleFuelEntry[]     @relation("VehicleFuelEntryDriver")
+  journalLines       JournalLine[]
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

@@ -1,0 +1,120 @@
+/// Tekdüzen hesap planı sınıfı; drives the sign in the financial statements.
+enum LedgerAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  POSTED
+}
+
+/// What created a journal entry; `sourceId` points into the matching table.
+enum JournalSource {
+  MANUAL
+  /// Treasury opening balance (account opening).
+  TREASURY_OPENING
+  /// Partner opening balance.
+  PARTNER_OPENING
+  SALES_INVOICE
+  SALES_RETURN
+  PURCHASE_INVOICE
+  /// Cost of goods sold for a delivery note.
+  DELIVERY_NOTE
+  /// Stock movements outside purchasing and sales: receipts, issues and count adjustments.
+  STOCK_MOVEMENT
+  COLLECTION
+  PAYMENT
+  /// Received cheque / note collected, or an issued one paid at maturity.
+  CHEQUE
+  EXPENSE_REPORT
+  EXPENSE_PAYMENT
+  PAYROLL
+  PAYROLL_PAYMENT
+}
+
+/// Hesap planı: three-digit main accounts of the uniform chart and their sub-accounts.
+model LedgerAccount {
+  id        String            @id @default(uuid()) @db.Uuid
+  companyId String            @db.Uuid
+  /// "100" or a sub-account such as "100.01".
+  code      String
+  name      String
+  type      LedgerAccountType
+  parentId  String?           @db.Uuid
+  /// Used by automatic postings; cannot be deleted or deactivated.
+  isSystem  Boolean           @default(false)
+  isActive  Boolean           @default(true)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  company  Company         @relation(fields: [companyId], references: [id])
+  parent   LedgerAccount?  @relation("LedgerAccountTree", fields: [parentId], references: [id])
+  children LedgerAccount[] @relation("LedgerAccountTree")
+  lines    JournalLine[]
+
+  @@unique([companyId, code])
+  @@index([parentId])
+  @@map("ledger_accounts")
+}
+
+/// Yevmiye fişi. Posted entries are immutable: corrections are reversing entries.
+model JournalEntry {
+  id           String             @id @default(uuid()) @db.Uuid
+  companyId    String             @db.Uuid
+  number       String
+  entryDate    DateTime           @db.Date
+  status       JournalEntryStatus @default(DRAFT)
+  source       JournalSource      @default(MANUAL)
+  sourceId     String?            @db.Uuid
+  /// Number of the source document, e.g. "FTR-2026-000004".
+  sourceNumber String?
+  description  String
+  /// Sum of the debit lines; equals the credit lines once posted.
+  total        Decimal            @default(0) @db.Decimal(18, 2)
+  /// Set on entries that reverse another entry.
+  reversesId   String?            @unique @db.Uuid
+  postedAt     DateTime?
+  createdById  String             @db.Uuid
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  company   Company       @relation(fields: [companyId], references: [id])
+  reverses  JournalEntry? @relation("JournalReversal", fields: [reversesId], references: [id])
+  reversal  JournalEntry? @relation("JournalReversal")
+  createdBy User          @relation("JournalEntryCreatedBy", fields: [createdById], references: [id])
+  lines     JournalLine[]
+
+  @@unique([companyId, number])
+  @@index([companyId, entryDate])
+  @@index([companyId, source, sourceId])
+  @@map("journal_entries")
+}
+
+/// One side of a journal entry, in the company's base currency.
+model JournalLine {
+  id          String  @id @default(uuid()) @db.Uuid
+  entryId     String  @db.Uuid
+  lineNo      Int
+  accountId   String  @db.Uuid
+  /// Cari hesap for receivable / payable lines.
+  partnerId   String? @db.Uuid
+  /// Employee for payroll and expense lines.
+  employeeId  String? @db.Uuid
+  description String?
+  debit       Decimal @default(0) @db.Decimal(18, 2)
+  credit      Decimal @default(0) @db.Decimal(18, 2)
+
+  entry    JournalEntry     @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account  LedgerAccount    @relation(fields: [accountId], references: [id])
+  partner  BusinessPartner? @relation(fields: [partnerId], references: [id])
+  employee Employee?        @relation(fields: [employeeId], references: [id])
+
+  @@unique([entryId, lineNo])
+  @@index([accountId])
+  @@index([partnerId])
+  @@map("journal_lines")
+}

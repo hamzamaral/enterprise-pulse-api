@@ -134,6 +134,17 @@ prisma/migrations/       committed migrations, never edited after merge
   (others without `fleet:read` get 404); `GET /vehicles/my` needs no permission. Vehicles with history
   are retired, not deleted. The daily BullMQ job (`fleet.processor.ts`, skipped under `NODE_ENV=test`)
   reminds once per state via `vehicle_documents.remindedState` and `vehicles.serviceRemindedFor`.
+- Accounting (`modules/accounting`, permission `accounting:read|update|approve|close`): the chart is the
+  Turkish uniform chart (`accounting-chart.ts`, `ACC` system codes); sub-accounts use dotted codes
+  (`120.01`), inherit the parent type and roll up into it. Journal entries are `DRAFT` (manual only,
+  editable) or `POSTED` (immutable); corrections are reversal entries (`reversesId`). Document entries come
+  from `AccountingPostingService.plan()`: one open (not reversed, not a reversal) entry per
+  `source` + `sourceId`; POST / REVERSE / REPOST actions; each document is applied in its own transaction
+  under `lockAccounting` (advisory lock). Posting rules are pure functions in `accounting-rules.ts`; line
+  normalization, trial balance and statements in `accounting-math.ts`. Amounts are in the company
+  currency (`toBase`). `settings.accounting.lockedUntil` blocks posting, reversing and automatic entries on
+  or before that date. `JournalLine` is excluded from the audit log. The nightly BullMQ job
+  (`accounting.processor.ts`, skipped under `NODE_ENV=test`) calls `runAll()`.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,

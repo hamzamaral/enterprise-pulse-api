@@ -103,6 +103,8 @@ model Company {
   vehicleFuelEntries  VehicleFuelEntry[]
   vehicleServices     VehicleService[]
   vehicleDocuments    VehicleDocument[]
+  ledgerAccounts      LedgerAccount[]
+  journalEntries      JournalEntry[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

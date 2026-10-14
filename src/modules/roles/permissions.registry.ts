@@ -99,6 +99,11 @@ export const PERMISSION_REGISTRY = {
    * services, documents, deleting entries and running the reminder job.
    */
   fleet: ['read', 'update'],
+  /**
+   * read = journal, ledgers, trial balance and financial statements; update = chart of accounts and
+   * draft entries; approve = post and reverse entries and run automatic posting; close = lock periods.
+   */
+  accounting: ['read', 'update', 'approve', 'close'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;
