@@ -99,6 +99,10 @@ model Company {
   budgetItems         BudgetItem[]
   budgets             Budget[]
   budgetEntries       BudgetEntry[]
+  vehicles            Vehicle[]
+  vehicleFuelEntries  VehicleFuelEntry[]
+  vehicleServices     VehicleService[]
+  vehicleDocuments    VehicleDocument[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

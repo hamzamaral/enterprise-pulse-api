@@ -46,6 +46,7 @@ model Department {
   jobPostings      JobPosting[]
   budgets          Budget[]
   budgetEntries    BudgetEntry[]
+  vehicles         Vehicle[]
 
   @@unique([companyId, code])
   @@index([companyId, parentId])
@@ -130,6 +131,8 @@ model Employee {
   reviewsToGive      PerformanceReview[]    @relation("PerformanceReviewReviewer")
   trainings          TrainingEnrollment[]   @relation("TrainingEnrollmentEmployee")
   contracts          Contract[]
+  vehicleAssignments VehicleAssignment[]
+  vehicleFuelEntries VehicleFuelEntry[]     @relation("VehicleFuelEntryDriver")
 
   @@unique([companyId, employeeNo])
   @@unique([companyId, userId])

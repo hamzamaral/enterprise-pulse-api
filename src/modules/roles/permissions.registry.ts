@@ -93,6 +93,12 @@ export const PERMISSION_REGISTRY = {
    * the overspend check; approve = approve and reopen budgets.
    */
   budgets: ['read', 'update', 'approve'],
+  /**
+   * Drivers see the vehicles assigned to them and add fuel and odometer readings without a
+   * permission. read = every vehicle, the fuel log and the dashboard; update = vehicles, handovers,
+   * services, documents, deleting entries and running the reminder job.
+   */
+  fleet: ['read', 'update'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

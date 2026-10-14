@@ -1,0 +1,220 @@
+enum VehicleStatus {
+  ACTIVE
+  /// At the workshop; still counted in the fleet.
+  IN_SERVICE
+  /// Sold or scrapped; kept for history.
+  RETIRED
+}
+
+enum VehicleFuelType {
+  GASOLINE
+  DIESEL
+  LPG
+  HYBRID
+  ELECTRIC
+}
+
+enum VehicleOwnership {
+  OWNED
+  LEASED
+  RENTED
+}
+
+enum VehicleServiceType {
+  /// Scheduled maintenance; moves the next service due.
+  PERIODIC
+  REPAIR
+  TIRE
+  ACCIDENT
+  OTHER
+}
+
+/// Dated vehicle documents that expire (muayene, trafik sigortası, kasko, egzoz emisyon).
+enum VehicleDocumentType {
+  INSPECTION
+  TRAFFIC_INSURANCE
+  CASCO
+  EMISSION
+}
+
+enum VehicleOdometerSource {
+  MANUAL
+  FUEL
+  SERVICE
+  ASSIGNMENT
+}
+
+/// Şirket aracı.
+model Vehicle {
+  id                    String           @id @default(uuid()) @db.Uuid
+  companyId             String           @db.Uuid
+  /// Normalised Turkish plate, e.g. "34 ABC 123".
+  plate                 String
+  brand                 String
+  model                 String
+  modelYear             Int?
+  color                 String?
+  /// Şasi numarası.
+  vin                   String?
+  fuelType              VehicleFuelType
+  ownership             VehicleOwnership @default(OWNED)
+  /// End of the lease or rental; null for owned vehicles.
+  contractEndsOn        DateTime?        @db.Date
+  departmentId          String?          @db.Uuid
+  status                VehicleStatus    @default(ACTIVE)
+  /// Highest odometer reading, km.
+  odometer              Int              @default(0)
+  serviceIntervalKm     Int?
+  serviceIntervalMonths Int?
+  nextServiceKm         Int?
+  nextServiceDate       DateTime?        @db.Date
+  /// "<state>:<km>:<date>" of the last service reminder, so each due service is reminded once per state.
+  serviceRemindedFor    String?
+  notes                 String?
+  retiredOn             DateTime?        @db.Date
+  createdById           String           @db.Uuid
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  company     Company                  @relation(fields: [companyId], references: [id])
+  department  Department?              @relation(fields: [departmentId], references: [id])
+  createdBy   User                     @relation("VehicleCreatedBy", fields: [createdById], references: [id])
+  assignments VehicleAssignment[]
+  readings    VehicleOdometerReading[]
+  fuelEntries VehicleFuelEntry[]
+  services    VehicleService[]
+  documents   VehicleDocument[]
+
+  @@unique([companyId, plate])
+  @@index([companyId, status])
+  @@map("vehicles")
+}
+
+/// Sürücü zimmeti; an open assignment has no `endDate`.
+model VehicleAssignment {
+  id            String    @id @default(uuid()) @db.Uuid
+  vehicleId     String    @db.Uuid
+  employeeId    String    @db.Uuid
+  startDate     DateTime  @db.Date
+  endDate       DateTime? @db.Date
+  startOdometer Int
+  endOdometer   Int?
+  note          String?
+  createdById   String    @db.Uuid
+  createdAt     DateTime  @default(now())
+
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee  Employee @relation(fields: [employeeId], references: [id])
+  createdBy User     @relation("VehicleAssignmentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([vehicleId, startDate])
+  @@index([employeeId, endDate])
+  @@map("vehicle_assignments")
+}
+
+/// Kilometre okuması; fuel entries and services write one too.
+model VehicleOdometerReading {
+  id          String                @id @default(uuid()) @db.Uuid
+  vehicleId   String                @db.Uuid
+  readingDate DateTime              @db.Date
+  odometer    Int
+  source      VehicleOdometerSource
+  fuelEntryId String?               @unique @db.Uuid
+  serviceId   String?               @unique @db.Uuid
+  note        String?
+  createdById String?               @db.Uuid
+  createdAt   DateTime              @default(now())
+
+  vehicle   Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  fuelEntry VehicleFuelEntry? @relation(fields: [fuelEntryId], references: [id], onDelete: Cascade)
+  service   VehicleService?   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdBy User?             @relation("VehicleReadingCreatedBy", fields: [createdById], references: [id])
+
+  @@index([vehicleId, readingDate])
+  @@map("vehicle_odometer_readings")
+}
+
+/// Yakıt alımı.
+model VehicleFuelEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  companyId   String   @db.Uuid
+  vehicleId   String   @db.Uuid
+  entryDate   DateTime @db.Date
+  odometer    Int
+  liters      Decimal  @db.Decimal(10, 2)
+  /// Company currency.
+  amount      Decimal  @db.Decimal(18, 2)
+  fullTank    Boolean  @default(true)
+  station     String?
+  /// The driver assigned on `entryDate`.
+  employeeId  String?  @db.Uuid
+  /// km since the previous entry; recalculated whenever the vehicle's entries change.
+  distance    Int?
+  /// L/100 km since the previous full tank, on full-tank entries.
+  consumption Decimal? @db.Decimal(6, 2)
+  note        String?
+  createdById String   @db.Uuid
+  createdAt   DateTime @default(now())
+
+  company   Company                 @relation(fields: [companyId], references: [id])
+  vehicle   Vehicle                 @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  employee  Employee?               @relation("VehicleFuelEntryDriver", fields: [employeeId], references: [id])
+  createdBy User                    @relation("VehicleFuelEntryCreatedBy", fields: [createdById], references: [id])
+  reading   VehicleOdometerReading?
+
+  @@index([companyId, entryDate])
+  @@index([vehicleId, entryDate])
+  @@map("vehicle_fuel_entries")
+}
+
+/// Bakım ve onarım kaydı.
+model VehicleService {
+  id          String             @id @default(uuid()) @db.Uuid
+  companyId   String             @db.Uuid
+  vehicleId   String             @db.Uuid
+  type        VehicleServiceType
+  serviceDate DateTime           @db.Date
+  odometer    Int?
+  /// The workshop, when it is a partner (cari).
+  partnerId   String?            @db.Uuid
+  description String
+  cost        Decimal            @default(0) @db.Decimal(18, 2)
+  createdById String             @db.Uuid
+  createdAt   DateTime           @default(now())
+
+  company   Company                 @relation(fields: [companyId], references: [id])
+  vehicle   Vehicle                 @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  partner   BusinessPartner?        @relation(fields: [partnerId], references: [id])
+  createdBy User                    @relation("VehicleServiceCreatedBy", fields: [createdById], references: [id])
+  reading   VehicleOdometerReading?
+
+  @@index([companyId, serviceDate])
+  @@index([vehicleId, serviceDate])
+  @@map("vehicle_services")
+}
+
+/// Muayene, sigorta ve kasko; the latest `endDate` per type is the current one.
+model VehicleDocument {
+  id            String              @id @default(uuid()) @db.Uuid
+  companyId     String              @db.Uuid
+  vehicleId     String              @db.Uuid
+  type          VehicleDocumentType
+  startDate     DateTime?           @db.Date
+  endDate       DateTime            @db.Date
+  provider      String?
+  policyNumber  String?
+  cost          Decimal             @default(0) @db.Decimal(18, 2)
+  note          String?
+  /// State (EXPIRING / EXPIRED) the last reminder was sent for.
+  remindedState String?
+  createdById   String              @db.Uuid
+  createdAt     DateTime            @default(now())
+
+  company   Company @relation(fields: [companyId], references: [id])
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("VehicleDocumentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([companyId, endDate])
+  @@index([vehicleId, type, endDate])
+  @@map("vehicle_documents")
+}

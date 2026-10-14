@@ -24,6 +24,7 @@ import { seedContracts } from './seed-contracts';
 import { seedCrm } from './seed-crm';
 import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
+import { seedFleet } from './seed-fleet';
 import { seedInventory } from './seed-inventory';
 import { seedPayroll } from './seed-payroll';
 import { seedPerformance } from './seed-performance';
@@ -83,6 +84,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'support:update',
       'contracts:read',
       'budgets:read',
+      'fleet:read',
     ],
   },
   employee: {
@@ -1355,6 +1357,9 @@ async function main() {
 
   console.log('Seeding budgets...');
   await seedBudgets(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
+
+  console.log('Seeding fleet...');
+  await seedFleet(prisma, { companyId: pulse.id, adminId: admin.id });
 
   console.log('Seed completed.');
 }

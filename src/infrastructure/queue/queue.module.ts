@@ -7,6 +7,8 @@ export const QUEUES = {
   /** Daily contract renewals, expiries and reminders. */
   CONTRACTS: 'contracts',
   BUDGETS: 'budgets',
+  /** Daily vehicle document and service reminders. */
+  FLEET: 'fleet',
 } as const;
 
 @Global()
@@ -35,6 +37,7 @@ export const QUEUES = {
       { name: QUEUES.MAIL },
       { name: QUEUES.CONTRACTS },
       { name: QUEUES.BUDGETS },
+      { name: QUEUES.FLEET },
     ),
   ],
   exports: [BullModule],
