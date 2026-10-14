@@ -24,6 +24,10 @@ export const ACC = {
   COST_OF_GOODS_SOLD: '621',
   OTHER_EXTRAORDINARY_INCOME: '679',
   OTHER_EXTRAORDINARY_EXPENSE: '689',
+  DIRECT_MATERIALS: '710',
+  DIRECT_MATERIALS_APPLIED: '711',
+  DIRECT_LABOR_APPLIED: '721',
+  OVERHEAD_APPLIED: '731',
   GENERAL_ADMIN_EXPENSES: '770',
 } as const;
 
@@ -101,8 +105,11 @@ const DEFAULT_ACCOUNTS: [string, string][] = [
   ['689', 'Diğer Olağandışı Gider ve Zararlar (-)'],
   ['691', 'Dönem Kârı Vergi ve Diğer Yasal Yükümlülük Karşılıkları (-)'],
   ['710', 'Direkt İlk Madde ve Malzeme Giderleri'],
+  ['711', 'Direkt İlk Madde ve Malzeme Yansıtma Hesabı'],
   ['720', 'Direkt İşçilik Giderleri'],
+  ['721', 'Direkt İşçilik Giderleri Yansıtma Hesabı'],
   ['730', 'Genel Üretim Giderleri'],
+  ['731', 'Genel Üretim Giderleri Yansıtma Hesabı'],
   ['760', 'Pazarlama, Satış ve Dağıtım Giderleri'],
   ['770', 'Genel Yönetim Giderleri'],
   ['780', 'Finansman Giderleri'],

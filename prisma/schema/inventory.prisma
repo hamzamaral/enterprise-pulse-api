@@ -115,6 +115,10 @@ model ProductVariant {
   deliveryLines DeliveryNoteLine[]
   sInvoiceLines SalesInvoiceLine[]
   sReturnLines  SalesReturnLine[]
+  boms          BillOfMaterials[]     @relation("BomOutput")
+  bomLines      BomLine[]             @relation("BomComponent")
+  workOrders    WorkOrder[]           @relation("WorkOrderOutput")
+  woComponents  WorkOrderComponent[]  @relation("WorkOrderComponent")
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -148,6 +152,8 @@ model Warehouse {
   reservations   StockReservation[]
   deliveryNotes  DeliveryNote[]
   salesReturns   SalesReturn[]
+  woSources      WorkOrder[]        @relation("WorkOrderSource")
+  woTargets      WorkOrder[]        @relation("WorkOrderTarget")
 
   @@unique([companyId, code])
   @@map("warehouses")
@@ -243,16 +249,18 @@ model StockMovement {
   createdById       String            @db.Uuid
   createdAt         DateTime          @default(now())
 
-  company         Company             @relation(fields: [companyId], references: [id])
-  sourceWarehouse Warehouse?          @relation("MovementSource", fields: [sourceWarehouseId], references: [id])
-  targetWarehouse Warehouse?          @relation("MovementTarget", fields: [targetWarehouseId], references: [id])
-  createdBy       User                @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
-  lines           StockMovementLine[]
-  transactions    StockTransaction[]
-  stockCount      StockCount?
-  goodsReceipt    GoodsReceipt?
-  deliveryNote    DeliveryNote?
-  salesReturn     SalesReturn?
+  company           Company             @relation(fields: [companyId], references: [id])
+  sourceWarehouse   Warehouse?          @relation("MovementSource", fields: [sourceWarehouseId], references: [id])
+  targetWarehouse   Warehouse?          @relation("MovementTarget", fields: [targetWarehouseId], references: [id])
+  createdBy         User                @relation("StockMovementCreatedBy", fields: [createdById], references: [id])
+  lines             StockMovementLine[]
+  transactions      StockTransaction[]
+  stockCount        StockCount?
+  goodsReceipt      GoodsReceipt?
+  deliveryNote      DeliveryNote?
+  salesReturn       SalesReturn?
+  productionIssue   ProductionRecord?   @relation("ProductionIssue")
+  productionReceipt ProductionRecord?   @relation("ProductionReceipt")
 
   @@unique([companyId, number])
   @@index([companyId, movementDate])

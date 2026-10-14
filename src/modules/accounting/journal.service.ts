@@ -275,6 +275,13 @@ export class JournalService {
         });
         return entry?.partnerId ?? null;
       }
+      case JournalSource.PRODUCTION: {
+        const record = await this.prisma.productionRecord.findUnique({
+          where: { id: row.sourceId },
+          select: { workOrderId: true },
+        });
+        return record?.workOrderId ?? null;
+      }
       default:
         return row.sourceId;
     }

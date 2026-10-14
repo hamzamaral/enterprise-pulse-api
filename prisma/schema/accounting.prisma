@@ -34,6 +34,8 @@ enum JournalSource {
   EXPENSE_PAYMENT
   PAYROLL
   PAYROLL_PAYMENT
+  /// Production record: materials used and finished goods received.
+  PRODUCTION
 }
 
 /// Hesap planı: three-digit main accounts of the uniform chart and their sub-accounts.

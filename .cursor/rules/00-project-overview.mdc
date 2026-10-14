@@ -154,6 +154,16 @@ prisma/migrations/       committed migrations, never edited after merge
   Numbers use the `E_INVOICE` (EPF) / `E_ARCHIVE` (EPA) sequences; `resend` keeps the number when the
   series is unchanged. Incoming invoices are recorded via `PurchaseInvoicesService.create`. Sales invoice
   cancel is guarded by `salesCancelCheck`. `settings.einvoice.autoSend` sends on `sales.invoice.created`.
+- Production (`modules/production`, permission `production:read|update|record`): `BomsService` (one
+  default active BOM per variant, `createsCycle` check, services and serial items rejected; BOMs with work
+  orders can only be deactivated), `WorkOrdersService` (DRAFT → RELEASED → IN_PROGRESS → COMPLETED,
+  CANCELLED only before any record; the work order snapshots `quantityPer`, `requiredQty` and per-unit
+  labour / overhead) and `MrpService` (requirements, purchase request via `PurchaseRequestsService`,
+  summary). `record()` locks the order, posts an ISSUE (FEFO lots) and a RECEIPT through
+  `StockService.post` and stores a `ProductionRecord` linked to both movements. Costs roll up through
+  `CostBook` (average cost, else the default BOM, else purchase price). Numbering: `WORK_ORDER` (ISE),
+  `PRODUCTION` (URT). Accounting source `PRODUCTION` (`productionLines`); movements linked to a
+  production record are excluded from `STOCK_MOVEMENT` posting.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,

@@ -109,6 +109,12 @@ export const PERMISSION_REGISTRY = {
    * integrator; update = answer and record incoming invoices and change the settings.
    */
   einvoice: ['read', 'send', 'update'],
+  /**
+   * read = bills of materials, work orders, production records and MRP; update = bills of
+   * materials and planning, releasing, cancelling and closing work orders; record = post
+   * production (issue materials, receive the output).
+   */
+  production: ['read', 'update', 'record'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

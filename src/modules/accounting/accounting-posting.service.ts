@@ -38,6 +38,7 @@ import {
   partnerOpeningLines,
   paymentLines,
   payrollLines,
+  productionLines,
   purchaseInvoiceLines,
   salesInvoiceLines,
   salesReturnLines,
@@ -270,6 +271,7 @@ export class AccountingPostingService {
       this.partnerOpenings(companyId),
       this.expenseReports(companyId),
       this.payrolls(companyId),
+      this.production(companyId),
     ]);
     return groups.flat();
   }
@@ -400,6 +402,8 @@ export class AccountingPostingService {
         goodsReceipt: null,
         deliveryNote: null,
         salesReturn: null,
+        productionIssue: null,
+        productionReceipt: null,
       },
     });
     const descriptions: Record<StockMovementType, string> = {
@@ -646,6 +650,33 @@ export class AccountingPostingService {
           ),
       };
     });
+  }
+
+  /** Production records at the costs stored when the output was received. */
+  private async production(companyId: string): Promise<Candidate[]> {
+    const rows = await this.prisma.productionRecord.findMany({
+      where: { companyId },
+      include: { workOrder: { select: { number: true } } },
+    });
+    return rows.map((r) => ({
+      source: JournalSource.PRODUCTION,
+      sourceId: r.id,
+      sourceNumber: r.number,
+      description: `Üretim — iş emri ${r.workOrder.number}`,
+      date: r.recordDate,
+      amount: r.materialCost.plus(r.laborCost).plus(r.overheadCost),
+      wanted: true,
+      reverseDate: r.recordDate,
+      ownerId: r.createdById,
+      lines: () =>
+        Promise.resolve(
+          productionLines({
+            material: r.materialCost,
+            labor: r.laborCost,
+            overhead: r.overheadCost,
+          }),
+        ),
+    }));
   }
 
   // ---------- Lookups ----------

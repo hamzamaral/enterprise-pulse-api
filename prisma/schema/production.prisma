@@ -1,0 +1,151 @@
+enum WorkOrderStatus {
+  /// Being planned: quantity, dates, warehouses and the material list can still change.
+  DRAFT
+  /// Released to the shop floor; its open material needs count in MRP.
+  RELEASED
+  /// At least one production record was posted.
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+/// Ürün ağacı (reçete): the components and conversion costs needed to make one batch of a variant.
+model BillOfMaterials {
+  id           String   @id @default(uuid()) @db.Uuid
+  companyId    String   @db.Uuid
+  code         String
+  name         String
+  variantId    String   @db.Uuid
+  /// Output of one batch; line quantities are per batch.
+  quantity     Decimal  @default(1) @db.Decimal(18, 3)
+  /// Direct labour per batch, in the company currency.
+  laborCost    Decimal  @default(0) @db.Decimal(18, 2)
+  /// General production overhead per batch, in the company currency.
+  overheadCost Decimal  @default(0) @db.Decimal(18, 2)
+  /// The BOM that planning and MRP use for the variant (at most one per variant).
+  isDefault    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  notes        String?
+  createdById  String   @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company        @relation(fields: [companyId], references: [id])
+  variant    ProductVariant @relation("BomOutput", fields: [variantId], references: [id])
+  createdBy  User           @relation("BomCreatedBy", fields: [createdById], references: [id])
+  lines      BomLine[]
+  workOrders WorkOrder[]
+
+  @@unique([companyId, code])
+  @@index([companyId, variantId])
+  @@map("bills_of_materials")
+}
+
+model BomLine {
+  id        String  @id @default(uuid()) @db.Uuid
+  bomId     String  @db.Uuid
+  lineNo    Int
+  variantId String  @db.Uuid
+  quantity  Decimal @db.Decimal(18, 4)
+  /// Expected loss in percent: planned use is quantity × (1 + scrapRate / 100).
+  scrapRate Decimal @default(0) @db.Decimal(5, 2)
+  notes     String?
+
+  bom     BillOfMaterials @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  variant ProductVariant  @relation("BomComponent", fields: [variantId], references: [id])
+
+  @@unique([bomId, variantId])
+  @@map("bom_lines")
+}
+
+/// İş emri: make `quantity` of a variant from its BOM, drawing materials from one warehouse.
+model WorkOrder {
+  id                String          @id @default(uuid()) @db.Uuid
+  companyId         String          @db.Uuid
+  number            String
+  bomId             String          @db.Uuid
+  variantId         String          @db.Uuid
+  quantity          Decimal         @db.Decimal(18, 3)
+  producedQty       Decimal         @default(0) @db.Decimal(18, 3)
+  status            WorkOrderStatus @default(DRAFT)
+  plannedStart      DateTime        @db.Date
+  plannedEnd        DateTime        @db.Date
+  /// Materials are issued from here.
+  sourceWarehouseId String          @db.Uuid
+  /// Finished goods are received here.
+  targetWarehouseId String          @db.Uuid
+  /// Labour and overhead per unit of output, copied from the BOM.
+  laborPerUnit      Decimal         @default(0) @db.Decimal(18, 4)
+  overheadPerUnit   Decimal         @default(0) @db.Decimal(18, 4)
+  reference         String?
+  notes             String?
+  createdById       String          @db.Uuid
+  releasedAt        DateTime?
+  startedAt         DateTime?
+  completedAt       DateTime?
+  cancelledAt       DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  company         Company              @relation(fields: [companyId], references: [id])
+  bom             BillOfMaterials      @relation(fields: [bomId], references: [id])
+  variant         ProductVariant       @relation("WorkOrderOutput", fields: [variantId], references: [id])
+  sourceWarehouse Warehouse            @relation("WorkOrderSource", fields: [sourceWarehouseId], references: [id])
+  targetWarehouse Warehouse            @relation("WorkOrderTarget", fields: [targetWarehouseId], references: [id])
+  createdBy       User                 @relation("WorkOrderCreatedBy", fields: [createdById], references: [id])
+  components      WorkOrderComponent[]
+  records         ProductionRecord[]
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@map("work_orders")
+}
+
+/// Material list of a work order, copied from the BOM when the order is planned.
+model WorkOrderComponent {
+  id          String  @id @default(uuid()) @db.Uuid
+  workOrderId String  @db.Uuid
+  lineNo      Int
+  variantId   String  @db.Uuid
+  /// Planned use per unit of output, scrap included.
+  quantityPer Decimal @db.Decimal(18, 6)
+  requiredQty Decimal @db.Decimal(18, 3)
+  consumedQty Decimal @default(0) @db.Decimal(18, 3)
+
+  workOrder WorkOrder      @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation("WorkOrderComponent", fields: [variantId], references: [id])
+
+  @@unique([workOrderId, variantId])
+  @@map("work_order_components")
+}
+
+/// Üretim fişi: output reported on a work order. Issues the materials and receives the product.
+model ProductionRecord {
+  id                String   @id @default(uuid()) @db.Uuid
+  companyId         String   @db.Uuid
+  workOrderId       String   @db.Uuid
+  number            String
+  recordDate        DateTime @db.Date
+  quantity          Decimal  @db.Decimal(18, 3)
+  /// Costs in the company currency; unitCost is their sum divided by quantity.
+  materialCost      Decimal  @db.Decimal(18, 2)
+  laborCost         Decimal  @db.Decimal(18, 2)
+  overheadCost      Decimal  @db.Decimal(18, 2)
+  unitCost          Decimal  @db.Decimal(18, 4)
+  /// Null when nothing was consumed.
+  issueMovementId   String?  @unique @db.Uuid
+  receiptMovementId String   @unique @db.Uuid
+  notes             String?
+  createdById       String   @db.Uuid
+  createdAt         DateTime @default(now())
+
+  company         Company        @relation(fields: [companyId], references: [id])
+  workOrder       WorkOrder      @relation(fields: [workOrderId], references: [id])
+  issueMovement   StockMovement? @relation("ProductionIssue", fields: [issueMovementId], references: [id])
+  receiptMovement StockMovement  @relation("ProductionReceipt", fields: [receiptMovementId], references: [id])
+  createdBy       User           @relation("ProductionRecordCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([companyId, number])
+  @@index([workOrderId])
+  @@map("production_records")
+}

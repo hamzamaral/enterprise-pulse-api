@@ -16,6 +16,7 @@ import {
   partnerOpeningLines,
   paymentLines,
   payrollLines,
+  productionLines,
   purchaseInvoiceLines,
   salesInvoiceLines,
   salesReturnLines,
@@ -113,6 +114,19 @@ describe('posting rules', () => {
     expect(
       stockMovementLines(StockMovementType.TRANSFER, { increase: d(1), decrease: d(1) }),
     ).toEqual([]);
+  });
+
+  it('moves materials into the product at full production cost', () => {
+    const lines = productionLines({ material: d(900), labor: d(80), overhead: d(20) });
+    expect(view(lines)).toEqual([
+      '710 D 900',
+      '153 D 1000',
+      '153 C 900',
+      '711 C 900',
+      '721 C 80',
+      '731 C 20',
+    ]);
+    expect(balanced(lines)).toBe(true);
   });
 
   it('accrues payroll so that the employer cost equals the liabilities', () => {

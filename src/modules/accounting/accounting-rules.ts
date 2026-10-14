@@ -107,6 +107,22 @@ export function stockMovementLines(
   }
 }
 
+/**
+ * Üretim fişi: materials used 710 / 153, and the output into stock at full cost 153 /
+ * 711 (materials) + 721 (labour) + 731 (overhead) yansıtma hesapları.
+ */
+export function productionLines(cost: { material: Dec; labor: Dec; overhead: Dec }): DraftLine[] {
+  const total = cost.material.plus(cost.labor).plus(cost.overhead);
+  return [
+    { code: ACC.DIRECT_MATERIALS, debit: cost.material },
+    { code: ACC.MERCHANDISE, credit: cost.material },
+    { code: ACC.MERCHANDISE, debit: total },
+    { code: ACC.DIRECT_MATERIALS_APPLIED, credit: cost.material },
+    { code: ACC.DIRECT_LABOR_APPLIED, credit: cost.labor },
+    { code: ACC.OVERHEAD_APPLIED, credit: cost.overhead },
+  ];
+}
+
 /** Account a payment method moves money through. */
 function methodCode(method: PaymentMethod, direction: 'IN' | 'OUT', endorsed: boolean): string {
   switch (method) {

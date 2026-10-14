@@ -106,6 +106,9 @@ model Company {
   ledgerAccounts      LedgerAccount[]
   journalEntries      JournalEntry[]
   eInvoices           EInvoice[]
+  billsOfMaterials    BillOfMaterials[]
+  workOrders          WorkOrder[]
+  productionRecords   ProductionRecord[]
   timeEntries         TimeEntry[]
 
   @@map("companies")

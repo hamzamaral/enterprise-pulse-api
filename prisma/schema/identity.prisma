@@ -91,6 +91,9 @@ model User {
   journalEntries        JournalEntry[]           @relation("JournalEntryCreatedBy")
   eInvoices             EInvoice[]               @relation("EInvoiceCreatedBy")
   eInvoiceEvents        EInvoiceEvent[]          @relation("EInvoiceEventUser")
+  billsOfMaterials      BillOfMaterials[]        @relation("BomCreatedBy")
+  workOrders            WorkOrder[]              @relation("WorkOrderCreatedBy")
+  productionRecords     ProductionRecord[]       @relation("ProductionRecordCreatedBy")
 
   @@map("users")
 }
