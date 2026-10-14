@@ -169,9 +169,10 @@ describe('Accounting (e2e)', () => {
   });
 
   it('posts documents once, reverses cancelled ones and stays idempotent', async () => {
-    const opening = await entriesFor(
-      (await api('admin').get(`/treasury-accounts/${cashId}`).expect(200)).body.code,
-    );
+    const cash = (await api('admin').get(`/treasury-accounts/${cashId}`).expect(200)).body as {
+      code: string;
+    };
+    const opening = await entriesFor(cash.code);
     expect(opening.map((e) => [e.source, view(e.lines)])).toEqual([
       ['TREASURY_OPENING', ['100 D 2500.00', '500 C 2500.00']],
     ]);
