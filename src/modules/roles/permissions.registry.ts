@@ -104,6 +104,11 @@ export const PERMISSION_REGISTRY = {
    * draft entries; approve = post and reverse entries and run automatic posting; close = lock periods.
    */
   accounting: ['read', 'update', 'approve', 'close'],
+  /**
+   * read = e-invoice lists and documents; send = send sales invoices, resend and run the
+   * integrator; update = answer and record incoming invoices and change the settings.
+   */
+  einvoice: ['read', 'send', 'update'],
 } as const satisfies Record<string, readonly string[]>;
 
 export type PermissionModule = keyof typeof PERMISSION_REGISTRY;

@@ -31,6 +31,8 @@ model BusinessPartner {
   /// Default due date offset for invoices.
   paymentTermDays Int         @default(30)
   currencyCode    String      @default("TRY")
+  /// e-Fatura posta kutusu etiketi (urn:mail:...); partners without one receive e-Arşiv invoices.
+  eInvoiceAlias   String?
   /// Maximum open receivable in the company's base currency; null means unlimited.
   creditLimit     Decimal?    @db.Decimal(18, 2)
   notes           String?
@@ -61,6 +63,7 @@ model BusinessPartner {
   contracts        Contract[]
   vehicleServices  VehicleService[]
   journalLines     JournalLine[]
+  eInvoices        EInvoice[]
 
   @@unique([companyId, code])
   @@index([companyId, type])

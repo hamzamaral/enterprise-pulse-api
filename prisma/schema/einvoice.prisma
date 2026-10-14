@@ -1,0 +1,100 @@
+enum EInvoiceDirection {
+  OUTGOING
+  INCOMING
+}
+
+/// GİB senaryosu: e-Fatura temel/ticari for registered users, e-Arşiv for everyone else.
+enum EInvoiceProfile {
+  TEMELFATURA
+  TICARIFATURA
+  EARSIVFATURA
+}
+
+enum EInvoiceStatus {
+  /// Waiting for the (simulated) integrator to pick it up.
+  QUEUED
+  /// Accepted by GİB; on its way to the receiver.
+  SENT
+  /// In the receiver's inbox (or e-mailed, for e-Arşiv).
+  DELIVERED
+  /// Ticari fatura accepted by the receiver (or the 8-day response window passed).
+  ACCEPTED
+  /// Ticari fatura rejected by the receiver.
+  REJECTED
+  /// Refused by GİB validation; fix and resend.
+  ERROR
+  /// e-Arşiv invoice cancelled together with its sales invoice.
+  CANCELLED
+}
+
+/// e-Fatura / e-Arşiv belgesi (simulation). Outgoing ones are built from sales invoices; incoming
+/// ones are simulated supplier invoices that can be turned into purchase invoices.
+model EInvoice {
+  id                  String            @id @default(uuid()) @db.Uuid
+  companyId           String            @db.Uuid
+  direction           EInvoiceDirection
+  profile             EInvoiceProfile
+  status              EInvoiceStatus
+  /// 16-character GİB number such as "EPF2026000000001".
+  number              String
+  /// ETTN; renewed when a rejected (ERROR) envelope is sent again.
+  uuid                String            @unique @db.Uuid
+  salesInvoiceId      String?           @unique @db.Uuid
+  purchaseInvoiceId   String?           @unique @db.Uuid
+  partnerId           String            @db.Uuid
+  issueDate           DateTime          @db.Date
+  currencyCode        String
+  exchangeRate        Decimal           @db.Decimal(18, 6)
+  lineExtensionAmount Decimal           @db.Decimal(18, 2)
+  allowanceTotal      Decimal           @db.Decimal(18, 2)
+  taxTotal            Decimal           @db.Decimal(18, 2)
+  payableAmount       Decimal           @db.Decimal(18, 2)
+  senderAlias         String?
+  receiverAlias       String?
+  /// VKN/TCKN of both parties as written to the document.
+  senderTaxId         String?
+  receiverTaxId       String?
+  /// Line snapshot (description, quantity, unit code, prices, VAT) as sent.
+  lines               Json
+  /// UBL-TR 2.1 invoice document.
+  xml                 String
+  /// Last GİB / receiver status code (e.g. 1300) and message.
+  statusCode          String?
+  statusMessage       String?
+  /// Reason entered with a rejection.
+  responseNote        String?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  respondedAt         DateTime?
+  createdById         String?           @db.Uuid
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id])
+  partner         BusinessPartner  @relation(fields: [partnerId], references: [id])
+  salesInvoice    SalesInvoice?    @relation(fields: [salesInvoiceId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+  createdBy       User?            @relation("EInvoiceCreatedBy", fields: [createdById], references: [id])
+  events          EInvoiceEvent[]
+
+  @@unique([companyId, direction, number])
+  @@index([companyId, direction, status])
+  @@map("e_invoices")
+}
+
+/// Status history of an e-invoice.
+model EInvoiceEvent {
+  id         String         @id @default(uuid()) @db.Uuid
+  eInvoiceId String         @db.Uuid
+  status     EInvoiceStatus
+  code       String?
+  message    String
+  userId     String?        @db.Uuid
+  createdAt  DateTime       @default(now())
+
+  eInvoice EInvoice @relation(fields: [eInvoiceId], references: [id], onDelete: Cascade)
+  user     User?    @relation("EInvoiceEventUser", fields: [userId], references: [id])
+
+  @@index([eInvoiceId, createdAt])
+  @@map("e_invoice_events")
+}

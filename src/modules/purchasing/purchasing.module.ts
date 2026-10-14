@@ -34,5 +34,6 @@ import { SupplierQuotesService } from './supplier-quotes.service';
     PurchaseInvoicesService,
     PurchasingListener,
   ],
+  exports: [PurchaseInvoicesService],
 })
 export class PurchasingModule {}

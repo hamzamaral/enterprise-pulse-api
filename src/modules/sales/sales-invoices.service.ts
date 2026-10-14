@@ -4,11 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InvoiceStatus, LedgerDocumentType, Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EInvoiceStatus, InvoiceStatus, LedgerDocumentType, Prisma } from '@prisma/client';
 import type { AuthUser } from '../../common/auth/auth-user';
 import { parseDateOnly, toDateOnly } from '../../common/dates/date-only';
 import { paginated, toOrderBy, toPageArgs } from '../../common/pagination/paginate';
 import { PrismaService } from '../../infrastructure/prisma/prisma.service';
+import { GIB_CODES, salesCancelCheck } from '../einvoice/einvoice-rules';
 import { NumberingService } from '../numbering/numbering.service';
 import type { CancelDocumentDto } from '../partners/dto/trade.dto';
 import { PartnerLedgerService } from '../partners/partner-ledger.service';
@@ -28,6 +30,7 @@ import type {
   SalesInvoiceDto,
   SalesInvoiceQueryDto,
 } from './dto/sales.dto';
+import { SALES_EVENTS, type SalesInvoiceCreatedEvent } from './sales.events';
 import { OPEN_ORDER_STATUSES } from './sales-orders.service';
 
 const SORTABLE = ['number', 'invoiceDate', 'dueDate', 'grandTotal', 'createdAt'] as const;
@@ -56,6 +59,9 @@ const detailInclude = {
     select: { id: true, number: true, returnDate: true, grandTotal: true },
     orderBy: { createdAt: 'asc' },
   },
+  eInvoice: {
+    select: { id: true, number: true, profile: true, status: true, statusMessage: true },
+  },
 } satisfies Prisma.SalesInvoiceInclude;
 
 type ListRow = Prisma.SalesInvoiceGetPayload<{ include: typeof listInclude }>;
@@ -76,6 +82,7 @@ export class SalesInvoicesService {
     private readonly partners: PartnersService,
     private readonly ledger: PartnerLedgerService,
     private readonly trade: TradeService,
+    private readonly events: EventEmitter2,
   ) {}
 
   async findAll(companyId: string, query: SalesInvoiceQueryDto) {
@@ -238,6 +245,10 @@ export class SalesInvoicesService {
       }
       return created;
     });
+    await this.events.emitAsync(SALES_EVENTS.INVOICE_CREATED, {
+      user,
+      invoiceId: invoice.id,
+    } satisfies SalesInvoiceCreatedEvent);
     return this.findOne(companyId, invoice.id);
   }
 
@@ -251,6 +262,7 @@ export class SalesInvoicesService {
         include: {
           lines: { select: { orderLineId: true, quantity: true } },
           _count: { select: { returns: true } },
+          eInvoice: { select: { id: true, profile: true, status: true } },
         },
       });
       if (!invoice) throw new NotFoundException('Sales invoice not found');
@@ -262,6 +274,27 @@ export class SalesInvoicesService {
       }
       if (!invoice.paidAmount.isZero()) {
         throw new ConflictException('Invoice has collections; remove them first');
+      }
+      const eInvoice = salesCancelCheck(invoice.eInvoice);
+      if (!eInvoice.allowed) throw new ConflictException(eInvoice.reason);
+      if (eInvoice.cancelEInvoice) {
+        const message = 'e-Arşiv faturası iptal edildi (iptal raporuna eklendi)';
+        await tx.eInvoice.update({
+          where: { id: invoice.eInvoice!.id },
+          data: {
+            status: EInvoiceStatus.CANCELLED,
+            statusCode: GIB_CODES.CANCELLED,
+            statusMessage: message,
+            events: {
+              create: {
+                status: EInvoiceStatus.CANCELLED,
+                code: GIB_CODES.CANCELLED,
+                message,
+                userId: user.id,
+              },
+            },
+          },
+        });
       }
       for (const line of invoice.lines) {
         if (!line.orderLineId) continue;
@@ -338,5 +371,6 @@ function toDetailDto(row: DetailRow): SalesInvoiceDetailDto {
     })),
     createdByName: `${row.createdBy.firstName} ${row.createdBy.lastName}`,
     cancelledAt: row.cancelledAt,
+    eInvoice: row.eInvoice,
   };
 }

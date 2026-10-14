@@ -11,6 +11,8 @@ export const QUEUES = {
   FLEET: 'fleet',
   /** Nightly posting of source documents to the journal. */
   ACCOUNTING: 'accounting',
+  /** Simulated e-invoice integrator runs. */
+  EINVOICE: 'einvoice',
 } as const;
 
 @Global()
@@ -41,6 +43,7 @@ export const QUEUES = {
       { name: QUEUES.BUDGETS },
       { name: QUEUES.FLEET },
       { name: QUEUES.ACCOUNTING },
+      { name: QUEUES.EINVOICE },
     ),
   ],
   exports: [BullModule],

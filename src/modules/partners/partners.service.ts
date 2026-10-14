@@ -151,6 +151,7 @@ function toDto(row: BusinessPartner, balance: Prisma.Decimal): PartnerDto {
     contactName: row.contactName,
     paymentTermDays: row.paymentTermDays,
     currencyCode: row.currencyCode,
+    eInvoiceAlias: row.eInvoiceAlias,
     creditLimit: row.creditLimit?.toFixed(2) ?? null,
     notes: row.notes,
     isActive: row.isActive,

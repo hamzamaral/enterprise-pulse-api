@@ -26,6 +26,7 @@ import { seedExpenses } from './seed-expenses';
 import { seedFinance } from './seed-finance';
 import { seedFleet } from './seed-fleet';
 import { seedAccounting } from './seed-accounting';
+import { seedEInvoice } from './seed-einvoice';
 import { seedInventory } from './seed-inventory';
 import { seedPayroll } from './seed-payroll';
 import { seedPerformance } from './seed-performance';
@@ -87,6 +88,7 @@ const ROLE_PERMISSIONS: Record<string, { name: string; description: string; code
       'budgets:read',
       'fleet:read',
       'accounting:read',
+      'einvoice:read',
     ],
   },
   employee: {
@@ -1369,6 +1371,9 @@ async function main() {
     companyId: pulse.id,
     adminId: admin.id,
   });
+
+  console.log('Seeding e-invoice...');
+  await seedEInvoice(prisma, [pulse.id, logistics.id]);
 
   console.log('Seed completed.');
 }

@@ -24,6 +24,7 @@ import { ContractsModule } from './modules/contracts/contracts.module';
 import { FilesModule } from './modules/files/files.module';
 import { FleetModule } from './modules/fleet/fleet.module';
 import { AccountingModule } from './modules/accounting/accounting.module';
+import { EInvoiceModule } from './modules/einvoice/einvoice.module';
 import { HealthModule } from './modules/health/health.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
@@ -108,6 +109,7 @@ import { WorkflowModule } from './modules/workflow/workflow.module';
     BudgetsModule,
     FleetModule,
     AccountingModule,
+    EInvoiceModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

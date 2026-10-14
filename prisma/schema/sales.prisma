@@ -235,6 +235,7 @@ model SalesInvoice {
   lines       SalesInvoiceLine[]
   returns     SalesReturn[]
   allocations PaymentAllocation[]
+  eInvoice    EInvoice?
 
   @@unique([companyId, number])
   @@index([companyId, partnerId, status])

@@ -1,5 +1,7 @@
 import { ApiProperty, OmitType } from '@nestjs/swagger';
 import {
+  EInvoiceProfile,
+  EInvoiceStatus,
   InvoiceStatus,
   PaymentStatus,
   SalesOrderStatus,
@@ -417,6 +419,16 @@ export class SalesInvoiceLineDto extends TradeLineDto {
   returnedQty: string;
 }
 
+export class SalesInvoiceEInvoiceDto {
+  id: string;
+  number: string;
+  @ApiProperty({ enum: EInvoiceProfile, enumName: 'EInvoiceProfile' })
+  profile: EInvoiceProfile;
+  @ApiProperty({ enum: EInvoiceStatus, enumName: 'EInvoiceStatus' })
+  status: EInvoiceStatus;
+  statusMessage: string | null;
+}
+
 export class SalesInvoiceDetailDto extends SalesInvoiceDto {
   notes: string | null;
   partnerAddress: string | null;
@@ -426,6 +438,8 @@ export class SalesInvoiceDetailDto extends SalesInvoiceDto {
   returns: LinkedDocumentDto[];
   createdByName: string;
   cancelledAt: Date | null;
+  /** e-Fatura / e-Arşiv sent for this invoice. */
+  eInvoice: SalesInvoiceEInvoiceDto | null;
 }
 
 // ---------- Sales returns ----------

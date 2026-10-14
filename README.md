@@ -39,6 +39,7 @@ NestJS ile yazılmış **modüler monolit** bir REST API.
 | **Bütçe**                  | Gelir / gider bütçe kalemleri ve gerçekleşen kaynağı (masraf raporu, bordro, satın alma ve satış faturası, elle giriş), masraf ve ürün kategorisi eşlemesi, yıllık şirket ve departman bütçeleri, 12 aylık plan, geçen yılın bütçesinden veya gerçekleşeninden yüzde ayarlı kopyalama, taslak → onaylı → revizyon akışı, alt departmanları kapsayan plan / gerçekleşen karşılaştırması, belge kırılımı, %90 ve aşım uyarısı (bildirim ve e-posta), günlük zamanlanmış iş                          |
 | **Araç ve Filo**           | Araç kartı (Türk plakası doğrulama, mülkiyet ve kiralama bitişi, departman), sürücü zimmeti ve devir, sürücünün kendi aracına yakıt ve km girişi, geriye dönük km tutarlılığı, depo dolumu yöntemiyle L/100 km, periyodik bakım planı (km ve ay aralığı), onarım ve lastik kayıtları, muayene / trafik sigortası / kasko / egzoz emisyon takibi, bitişe 30 gün kala ve bittiğinde hatırlatma (bildirim ve e-posta), yıllık maliyet, km başına maliyet ve son 12 ay grafiği, günlük zamanlanmış iş |
 | **Muhasebe**               | Tekdüzen hesap planı (ana ve alt hesaplar, sistem hesapları), yevmiye fişi (taslak, kesinleştirme, ters kayıt), satış / alış faturası, iade, irsaliye maliyeti, stok hareketi, tahsilat / ödeme, çek, kasa ve cari açılışı, masraf ve bordrodan otomatik fiş (gece çalışan iş ve elle çalıştırma), belge iptal edilince ters kayıt, değişen bordroda yeniden kayıt, dönem kilidi, muavin defter, mizan, bilanço ve gelir tablosu                                                                  |
+| **e-Fatura**               | Satış faturasından UBL-TR 2.1 XML (TR1.2), e-Fatura (TEMEL / TİCARİ) ve e-Arşiv profili, GİB numarası (EPF / EPA serisi) ve ETTN, VKN / TCKN doğrulaması, GİB gönderim simülasyonu (kuyrukta, gönderildi, alıcıya ulaştı, hata kodları), alıcı yanıtı (kabul / red, 8 gün), hatalı faturayı yeniden gönderme, gelen e-fatura simülasyonu, yanıt ve alış faturasına aktarma, otomatik gönderim ayarı, e-faturalı faturanın iptal kuralları                                                         |
 | **Proje Yönetimi**         | Müşteriye bağlı projeler, rol ve saatlik maliyetli proje ekibi, sürükle-bırak görev panosu (öncelik, sorumlu, termin, tahmini süre), haftalık zaman çizelgesi, işçilik ve projeye yansıtılan masraflarla bütçe takibi, geciken ve bütçesi aşan proje göstergeleri                                                                                                                                                                                                                                 |
 | **Zimmet ve Demirbaş**     | Demirbaş kartı ve QR etiket, personele / departmana / konuma zimmet, iade ve devir, elektronik onaylı zimmet tutanağı, bakım kaydı, doğrusal amortisman, zimmetli personelin işten çıkışını engelleme, QR okutarak demirbaş sayımı ve fark raporu                                                                                                                                                                                                                                                 |
 | **Stok ve Depo**           | Ürün ve varyantlar, çoklu depo, giriş / çıkış / transfer / düzeltme fişleri, hareketli ağırlıklı ortalama maliyet, lot (son kullanma tarihi) ve seri numarası takibi, barkodla stok sayımı ve otomatik düzeltme, kritik stok bildirimi                                                                                                                                                                                                                                                            |
@@ -160,6 +161,14 @@ test/               gerçek veritabanıyla uçtan uca HTTP testleri
   320, maaş tahakkuku 770 / 335 + 360 + 361 + 336). Kilit tarihine düşen belgeler atlanır; elle fiş, ters kayıt
   ve kesinleştirme de kilitli döneme yapılamaz. BullMQ `accounting` kuyruğundaki iş her gece 02:30'da
   (Europe/Istanbul) tüm şirketlerde çalışır.
+- **e-Fatura simülasyonu:** `POST /e-invoices` satış faturasından UBL-TR XML üretir (`einvoice-xml.ts`) ve
+  kaydı kuyruğa alır; alıcının etiketi varsa e-Fatura, yoksa e-Arşiv profili seçilir. BullMQ `einvoice`
+  kuyruğu (gönderimden 3 ve 8 saniye sonra, ayrıca dakikada bir) GİB'i taklit eder: kuyruktaki fatura
+  doğrulanır (VKN / TCKN kontrol hanesi, etiket, satırlar, tutarlar) ve gönderildi ya da hata (1150) olur,
+  gönderilen fatura alıcıya ulaşır (1300), yanıtsız TİCARİ fatura 8 gün sonra kabul sayılır. Durum geçişleri
+  `FOR UPDATE` kilidiyle yapılır, her geçiş `e_invoice_events` tablosuna yazılır. Kurallar
+  `einvoice/einvoice-rules.ts`'tedir. Gelen fatura kabul edildikten sonra `PurchaseInvoicesService` ile alış
+  faturasına aktarılır (tedarikçi fatura no = e-fatura numarası).
 - **OpenAPI sözleşmesi:** Swagger şeması web reposundaki tipli istemcinin (Orval) kaynağıdır.
 
 ## Hızlı başlangıç
@@ -218,7 +227,8 @@ pnpm start:dev        # http://localhost:3000/api/v1
   bütçe kalemi durumu, kategori eşlemesi ve plan / gerçekleşen karşılaştırması,
   plaka doğrulama, km aralığı, depo dolumu tüketimi, belge ve bakım durumu,
   fiş satırı normalleştirme, mizan, bilanço ve gelir tablosu, belge başına muhasebe kuralları,
-  numaralandırma gibi saf iş kuralları.
+  VKN / TCKN kontrol hanesi, GİB numarası, profil seçimi, e-fatura doğrulaması ve durum geçişleri,
+  UBL-TR XML üretimi, numaralandırma gibi saf iş kuralları.
 - **Uçtan uca testler (Supertest):** kimlik doğrulama, İK, puantaj ve vardiya, zimmet ve demirbaş sayımı, stok akışları,
   CRM hattı (adayın dönüştürülmesi, teklifle fırsat kazanma), masraf formu (onay, ödeme, ters kayıt, gizlilik),
   proje yönetimi (ekip yetkisi, görev panosu, haftalık zaman çizelgesi, projeye masraf yansıtma),
@@ -234,7 +244,9 @@ pnpm start:dev        # http://localhost:3000/api/v1
   belge durumları, durum başına tek hatırlatma, silme ve hizmetten çıkarma),
   muhasebe (yetki sınırları, açılış / fatura / tahsilat fişleri, iptalde ters kayıt ve tekrar çalıştırmada
   değişmezlik, elle fişin dengesi, kesinleştirme ve ters kaydı, dönem kilidi, mizan ve bilanço dengesi,
-  alt hesap ve sistem hesabı kuralları)
+  alt hesap ve sistem hesabı kuralları),
+  e-Fatura (yetki sınırları, gönderim ve GİB durumları, doğrulama hatası ve yeniden gönderme, alıcı reddi,
+  e-Arşiv iptali, satış faturası iptal kuralı, gelen faturayı kabul edip alış faturasına aktarma, ayarlar)
   gerçek veritabanında; yetki sınırları, ortalama maliyet, eksi stok engeli, lot / seri kuralları, sayım düzeltmesi ve
   kritik stok bildirimi dahil.
 - **Ayrı test veritabanı:** e2e testleri `<db>_e2e` veritabanında çalışır (yoksa oluşturulur, migration ve seed

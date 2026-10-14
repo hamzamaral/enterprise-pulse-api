@@ -17,6 +17,7 @@ import {
   Min,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/pagination/pagination.dto';
+import { ALIAS_PATTERN } from '../../einvoice/einvoice-rules';
 
 const toBoolean = ({ value }: { value: unknown }) =>
   value === true || value === 'true' ? true : value === false || value === 'false' ? false : value;
@@ -78,6 +79,12 @@ export class CreatePartnerDto {
   @Matches(/^[A-Z]{3}$/)
   currencyCode?: string;
 
+  /** e-Fatura mailbox alias; registered users receive e-Fatura, the rest e-Arşiv. */
+  @IsOptional()
+  @Matches(ALIAS_PATTERN, { message: 'eInvoiceAlias must look like urn:mail:pk@example.com' })
+  @MaxLength(150)
+  eInvoiceAlias?: string | null;
+
   @IsOptional()
   @IsNumber({ maxDecimalPlaces: 2 })
   @Min(0)
@@ -123,6 +130,7 @@ export class PartnerDto {
   contactName: string | null;
   paymentTermDays: number;
   currencyCode: string;
+  eInvoiceAlias: string | null;
   creditLimit: string | null;
   notes: string | null;
   isActive: boolean;

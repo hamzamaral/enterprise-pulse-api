@@ -145,6 +145,15 @@ prisma/migrations/       committed migrations, never edited after merge
   currency (`toBase`). `settings.accounting.lockedUntil` blocks posting, reversing and automatic entries on
   or before that date. `JournalLine` is excluded from the audit log. The nightly BullMQ job
   (`accounting.processor.ts`, skipped under `NODE_ENV=test`) calls `runAll()`.
+- e-Invoice (`modules/einvoice`, permission `einvoice:read|send|update`): a simulation of the Turkish
+  GİB e-Fatura / e-Arşiv flow. `send()` builds UBL-TR 2.1 XML (`einvoice-xml.ts`) from a sales invoice and
+  stores a `QUEUED` record; the profile comes from `resolveProfile` (receiver alias → TEMEL / TICARI,
+  otherwise EARSIV). `nextOutgoingStep` drives QUEUED → SENT | ERROR → DELIVERED → ACCEPTED (TICARI after
+  8 days); transitions lock the row (`FOR UPDATE`) and append an `EInvoiceEvent`. The BullMQ `einvoice`
+  queue (`einvoice.processor.ts`, skipped under `NODE_ENV=test`) and `POST /e-invoices/sync` run steps.
+  Numbers use the `E_INVOICE` (EPF) / `E_ARCHIVE` (EPA) sequences; `resend` keeps the number when the
+  series is unchanged. Incoming invoices are recorded via `PurchaseInvoicesService.create`. Sales invoice
+  cancel is guarded by `salesCancelCheck`. `settings.einvoice.autoSend` sends on `sales.invoice.created`.
 - Count sessions (stock and asset counts) snapshot the expected state when created, are edited only while `DRAFT`
   (lock the header row with `SELECT … FOR UPDATE`) and apply their effects once on completion.
 - Attendance (`hr/attendance.service.ts`): wall-clock times are local to the company time zone (`settings.general.timezone`,

@@ -89,6 +89,8 @@ model User {
   vehicleServices       VehicleService[]         @relation("VehicleServiceCreatedBy")
   vehicleDocuments      VehicleDocument[]        @relation("VehicleDocumentCreatedBy")
   journalEntries        JournalEntry[]           @relation("JournalEntryCreatedBy")
+  eInvoices             EInvoice[]               @relation("EInvoiceCreatedBy")
+  eInvoiceEvents        EInvoiceEvent[]          @relation("EInvoiceEventUser")
 
   @@map("users")
 }
