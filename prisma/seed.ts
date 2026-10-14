@@ -18,6 +18,7 @@ import { parseDateOnly } from '../src/common/dates/date-only';
 import { countWorkingDays } from '../src/modules/hr/working-days';
 import { formatNumber } from '../src/modules/numbering/number-format';
 import { ALL_PERMISSION_CODES } from '../src/modules/roles/permissions.registry';
+import { seedAdminProfile } from './seed-admin-profile';
 import { seedAttendance } from './seed-attendance';
 import { seedBudgets } from './seed-budgets';
 import { seedContracts } from './seed-contracts';
@@ -1370,6 +1371,9 @@ async function main() {
 
   console.log('Seeding production...');
   await seedProduction(prisma, { companyId: pulse.id, adminId: admin.id });
+
+  console.log('Seeding admin self-service profile...');
+  await seedAdminProfile(prisma, { companyId: pulse.id, adminId: admin.id, managerId: manager.id });
 
   console.log('Seeding accounting...');
   await seedAccounting(prisma, [pulse.id, logistics.id], {

@@ -214,6 +214,11 @@ pnpm start:dev        # http://localhost:3000/api/v1
 | Müdür             | `manager@enterprisepulse.dev`  | `Manager123!`  |
 | Personel          | `employee@enterprisepulse.dev` | `Employee123!` |
 
+Sistem yöneticisi, genel müdürün personel kaydına (Hakan Erdem) bağlıdır; zimmet, izin, mesai,
+masraf, görev, mülakat ve destek talebi gibi self servis sayfaları da dolu gelir. `pnpm db:seed`
+tekrar çalıştırıldığında eksik verileri tamamlar ve son çalıştırmadan bu yana geçen günlerin mesai
+kayıtlarını ekler.
+
 ## Komutlar
 
 | Komut                                                | Açıklama                                      |

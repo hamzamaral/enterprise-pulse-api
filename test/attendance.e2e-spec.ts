@@ -109,9 +109,36 @@ describe('Attendance and shifts (e2e)', () => {
     expect(checkedOut.body.today.checkOut).toMatch(/^\d{2}:\d{2}$/);
     expect(checkedOut.body.canCheckOut).toBe(false);
     await api('employee').post('/attendance/check-out').expect(409);
+  });
 
-    await api('admin').get('/employees/me').expect(404);
-    await api('admin').post('/attendance/check-in').expect(404);
+  it('rejects self-service attendance for users without a personnel record', async () => {
+    const roles = await api('admin').get('/roles?pageSize=100').expect(200);
+    const role = (roles.body.data as { id: string; code: string }[]).find(
+      (r) => r.code === 'employee',
+    )!;
+    const credentials = {
+      email: `e2e-nopersonnel-${Date.now()}@example.com`,
+      password: 'Test1234!',
+    };
+    const user = await api('admin')
+      .post('/users', {
+        ...credentials,
+        firstName: 'E2E',
+        lastName: 'Personelsiz',
+        roleIds: [role.id],
+      })
+      .expect(201);
+    try {
+      const token = await login(credentials);
+      const auth = (req: request.Test) => req.set('Authorization', `Bearer ${token}`);
+      await auth(request(app.getHttpServer()).get('/api/v1/employees/me')).expect(404);
+      await auth(request(app.getHttpServer()).post('/api/v1/attendance/check-in')).expect(404);
+    } finally {
+      await request(app.getHttpServer())
+        .delete(`/api/v1/users/${user.body.id}`)
+        .set('Authorization', `Bearer ${tokens.admin}`)
+        .expect(204);
+    }
   });
 
   it('calculates lateness from manual corrections', async () => {

@@ -33,6 +33,7 @@ function noise(a: number, b: number): number {
 /**
  * Shift definitions, a morning/evening rotation for the operations team and attendance records
  * from the start of the previous month until yesterday (some late arrivals, absences and overtime).
+ * Running it again tops up the days since the previous run.
  */
 export async function seedAttendance(prisma: PrismaClient, companyId: string) {
   const shifts = new Map<string, ShiftTimes & { id: string }>();
@@ -44,8 +45,9 @@ export async function seedAttendance(prisma: PrismaClient, companyId: string) {
     });
     shifts.set(code, row);
   }
-  if (await prisma.attendanceRecord.count({ where: { companyId } })) return;
 
+  // The generated data is deterministic and existing rows are skipped, so re-seeding only fills
+  // the working days that passed since the last run.
   const now = new Date();
   const today = parseDateOnly(new Date(now.getTime() + OFFSET_MINUTES * 60_000).toISOString());
   const from = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - 1, 1));

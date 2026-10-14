@@ -11,7 +11,7 @@ import { DEFAULT_SLA, dueDates } from '../src/modules/support/support-math';
 const HOUR_MS = 3_600_000;
 const YEAR = new Date().getFullYear();
 
-interface SupportSeedContext {
+export interface SupportSeedContext {
   companyId: string;
   adminId: string;
   managerId: string;
@@ -43,7 +43,7 @@ const CATEGORIES: { name: string; description: string; agent: Agent | null }[] =
 /** [hours after creation, author, body]; `note` is an internal note of the agent. */
 type CommentSeed = [number, 'requester' | 'agent' | 'note', string];
 
-interface TicketSeed {
+export interface TicketSeed {
   subject: string;
   description: string;
   category: string | null;
@@ -408,9 +408,8 @@ export async function seedSupport(prisma: PrismaClient, ctx: SupportSeedContext)
       update: {},
     });
   }
-  const categories = new Map<string, string>();
   for (const [index, seed] of CATEGORIES.entries()) {
-    const row = await prisma.ticketCategory.upsert({
+    await prisma.ticketCategory.upsert({
       where: { companyId_name: { companyId, name: seed.name } },
       create: {
         companyId,
@@ -421,11 +420,23 @@ export async function seedSupport(prisma: PrismaClient, ctx: SupportSeedContext)
       },
       update: {},
     });
-    categories.set(seed.name, row.id);
   }
 
   if (await prisma.ticket.count({ where: { companyId } })) return;
+  await createTickets(prisma, ctx, TICKETS);
+}
 
+/** Creates tickets with their SLA dates, status history and comments; categories match by name. */
+export async function createTickets(
+  prisma: PrismaClient,
+  ctx: SupportSeedContext,
+  seeds: TicketSeed[],
+) {
+  const { companyId } = ctx;
+  const agents: Record<Agent, string> = { admin: ctx.adminId, manager: ctx.managerId };
+  const categories = new Map(
+    (await prisma.ticketCategory.findMany({ where: { companyId } })).map((c) => [c.name, c.id]),
+  );
   const users = await prisma.user.findMany({
     where: { email: { endsWith: '@enterprisepulse.dev' } },
     select: { id: true, email: true, firstName: true, lastName: true },
@@ -438,7 +449,7 @@ export async function seedSupport(prisma: PrismaClient, ctx: SupportSeedContext)
   const name = (u: { firstName: string; lastName: string }) => `${u.firstName} ${u.lastName}`;
   const now = Date.now();
 
-  for (const seed of TICKETS) {
+  for (const seed of seeds) {
     const requester = user(seed.requester);
     const agentId = seed.agent ? agents[seed.agent] : null;
     const agent = agentId ? users.find((u) => u.id === agentId) : undefined;
