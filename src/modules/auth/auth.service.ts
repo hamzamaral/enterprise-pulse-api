@@ -31,6 +31,8 @@ import type {
 const MAX_FAILED_LOGINS = 5;
 const LOCK_MINUTES = 15;
 const RESET_TOKEN_TTL_MINUTES = 60;
+/** Window in which a just-rotated refresh token is still accepted (parallel tabs). */
+const ROTATION_GRACE_MS = 10_000;
 
 export interface ClientMeta {
   ip?: string;
@@ -114,7 +116,9 @@ export class AuthService {
 
   /**
    * Rotates a refresh token. Presenting an already revoked token means it was stolen or replayed,
-   * so the whole token family is revoked and the user must log in again.
+   * so the whole token family is revoked and the user must log in again. Tabs of one browser share
+   * the cookie and may refresh at the same moment, so a token rotated within the last few seconds
+   * is still accepted while its family is active.
    */
   async refresh(rawToken: string | undefined, meta: ClientMeta): Promise<IssuedTokens> {
     if (!rawToken) throw new UnauthorizedException('Missing refresh token');
@@ -125,7 +129,8 @@ export class AuthService {
     });
     if (!stored) throw new UnauthorizedException('Invalid refresh token');
 
-    if (stored.revokedAt) {
+    const concurrent = stored.revokedAt ? await this.isConcurrentRotation(stored) : false;
+    if (stored.revokedAt && !concurrent) {
       await this.prisma.refreshToken.updateMany({
         where: { familyId: stored.familyId, revokedAt: null },
         data: { revokedAt: new Date() },
@@ -137,6 +142,7 @@ export class AuthService {
     if (!stored.user.isActive || stored.user.deletedAt) throw new UnauthorizedException();
 
     const tokens = await this.issueTokens(stored.user, meta, stored.familyId);
+    if (concurrent) return tokens;
     const next = await this.prisma.refreshToken.findUniqueOrThrow({
       where: { tokenHash: sha256(tokens.refreshToken) },
     });
@@ -147,10 +153,30 @@ export class AuthService {
     return tokens;
   }
 
+  /** A token replaced moments ago by a sibling request of the same, still signed-in session. */
+  private async isConcurrentRotation(token: {
+    familyId: string;
+    revokedAt: Date | null;
+    replacedById: string | null;
+  }): Promise<boolean> {
+    if (!token.revokedAt || !token.replacedById) return false;
+    if (Date.now() - token.revokedAt.getTime() > ROTATION_GRACE_MS) return false;
+    const active = await this.prisma.refreshToken.count({
+      where: { familyId: token.familyId, revokedAt: null },
+    });
+    return active > 0;
+  }
+
+  /** Ends the whole session family, including tokens handed to concurrent refreshes. */
   async logout(rawToken: string | undefined): Promise<void> {
     if (!rawToken) return;
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { tokenHash: sha256(rawToken) },
+      select: { familyId: true },
+    });
+    if (!stored) return;
     await this.prisma.refreshToken.updateMany({
-      where: { tokenHash: sha256(rawToken), revokedAt: null },
+      where: { familyId: stored.familyId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }

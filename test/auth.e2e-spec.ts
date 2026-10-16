@@ -1,8 +1,10 @@
+import { createHash } from 'node:crypto';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { PrismaService } from '../src/infrastructure/prisma/prisma.service';
 
 const ADMIN = { email: 'admin@enterprisepulse.dev', password: 'Admin123!' };
 const EMPLOYEE = { email: 'employee@enterprisepulse.dev', password: 'Employee123!' };
@@ -99,7 +101,19 @@ describe('Auth & authorization (e2e)', () => {
       .expect(200);
     expect(first.body.accessToken).toEqual(expect.any(String));
 
-    // Replaying the already rotated cookie must fail and revoke the family.
+    // A parallel tab may still present the cookie that was rotated a moment ago.
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(200);
+
+    // Replaying it later means it was stolen: the request fails and the family is revoked.
+    const prisma = app.get(PrismaService);
+    const raw = /ep_refresh=([^;]+)/.exec(cookies.join(';'))![1];
+    await prisma.refreshToken.update({
+      where: { tokenHash: createHash('sha256').update(decodeURIComponent(raw)).digest('hex') },
+      data: { revokedAt: new Date(Date.now() - 60_000) },
+    });
     await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
       .set('Cookie', cookies)
@@ -107,6 +121,28 @@ describe('Auth & authorization (e2e)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/auth/refresh')
       .set('Cookie', first.get('Set-Cookie') ?? [])
+      .expect(401);
+  });
+
+  it('ends every token of the session on logout', async () => {
+    const { cookies } = await login(EMPLOYEE);
+    const first = await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(200);
+    // The parallel-tab refresh hands out a second token of the same session.
+    const sibling = await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', cookies)
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/logout')
+      .set('Cookie', first.get('Set-Cookie') ?? [])
+      .expect(200);
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Cookie', sibling.get('Set-Cookie') ?? [])
       .expect(401);
   });
 });
